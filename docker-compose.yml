@@ -1,0 +1,36 @@
+# Useful Commands:
+# docker build . -t nestjs-v10-webpack-boilerplate:latest -f ci/Dockerfile
+# docker-compose -p nest -f ci/docker-compose.yaml up
+
+version: '3.9'
+
+services:
+  nestjs-v10-webpack-boilerplate:
+    image: service-simpin-4:latest
+    container_name: nestjs-v10-webpack-boilerplate
+    user: node:node
+    ports:
+      - 3000:3000
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      BASE_PATH: /api
+      CLUSTERING: false
+      LOG_LEVEL: debug
+      PORT: 9000
+      DB_TYPE: postgres
+      DB_HOST: staging-koperasi.aviana.id
+      DB_PORT: 5432
+      DB_NAME: koperasi_simpin
+      DB_USERNAME: koperasi
+      DB_PASSWORD: koperasi*p9sql
+      RABBITMQ_URL: amqp://staging-koperasi.aviana.id:5672
+      KOPERASI_AUTH_SERVICE_URL: https://staging-usm-koperasi.aviana.id
+      KOPERASI_AUTH_SERVICE_CLIENT_ID: irsx_kasir
+      KOPERASI_AUTH_SERVICE_CLIENT_SECRET: 0aPcGXz1e9IB5epPHg3AtvLGIrjC0Mta
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:3000/api/healthz || exit 1
+      interval: 1m
+      start_period: 5s
+      timeout: 10s
+      retries: 3

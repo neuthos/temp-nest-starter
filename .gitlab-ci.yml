@@ -1,0 +1,66 @@
+stages:
+  - build
+  - deploy
+
+docker-build-master:
+  # Official docker image.
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - |
+      if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
+        tag=""
+        echo "Running on default branch '$CI_DEFAULT_BRANCH': tag = 'latest'"
+      else
+        tag=":$CI_COMMIT_REF_SLUG"
+        echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
+      fi
+    - docker build --pull -t "$CI_REGISTRY_IMAGE${tag}" .
+    - docker push "$CI_REGISTRY_IMAGE${tag}"
+  only:
+    - tags
+
+docker-build:
+  # Official docker image.
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+  only:
+    - staging
+
+build-to-swr:
+  stage: deploy
+  # Define environment variables for the build stage.
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    # Log in to SWR.
+    - docker login -u ap-southeast-4@ELALE4A8O69LOSA7NI96 -p 567a3e1c12e4d57534764c0e0d34d5262d6f762508a2ed499c5e219e4f1cca6c swr.ap-southeast-4.myhuaweicloud.com
+  script:
+    - |
+      if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
+        tag=""
+        echo "Running on default branch '$CI_DEFAULT_BRANCH': tag = 'latest'"
+      else
+        tag=":$CI_COMMIT_REF_SLUG"
+        echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
+      fi
+    - echo "build"
+    # Build an image. k8s-dev is the organization name in SWR. Replace it to the actual name.
+    - docker build -t swr.ap-southeast-4.myhuaweicloud.com/irsx/service-simpin$tag .
+    # Push the image to SWR.
+    - docker push swr.ap-southeast-4.myhuaweicloud.com/irsx/service-simpin$tag
+  only:
+    - tags
+    - master
