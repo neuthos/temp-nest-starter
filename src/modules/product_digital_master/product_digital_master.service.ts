@@ -13,27 +13,28 @@ export class ProductDigitalMasterService {
     private productMasterRepository: Repository<ProductDigitalMaster>
   ) {}
 
-  async list(filter: any): Promise<any> {
+  async list(filter: any, companyId: string): Promise<any> {
     const page = filter.page || 1;
     const limit = filter.limit || 1;
 
-    const query = this.productMasterRepository.createQueryBuilder('product');
+    const query = this.productMasterRepository
+      .createQueryBuilder('product')
+      .where('product.status = 1')
+      .andWhere('product.company_id is null')
+      .orWhere('product.company_id = :companyId', { companyId });
 
     if (filter.product_digital_brand_id) {
-      query.where(
+      query.andWhere(
         'product.product_digital_brand_id = :product_digital_brand_id',
         { product_digital_brand_id: filter.product_digital_brand_id }
       );
     }
 
+    console.log({ filter }, 123123);
     if (filter.is_bill_payment !== undefined) {
       query.andWhere('product.is_bill_payment = :is_bill_payment', {
-        is_bill_payment: filter.is_bill_payment,
+        is_bill_payment: +filter.is_bill_payment,
       });
-    }
-
-    if (filter.status !== undefined) {
-      query.andWhere('product.status = :status', { status: filter.status });
     }
 
     if (filter.name) {
@@ -46,24 +47,21 @@ export class ProductDigitalMasterService {
       });
     }
 
+    query.leftJoinAndMapOne(
+      'product.product_companies',
+      'product_companies',
+      'product_companies',
+      `product_companies.company_id = :companyId AND product_companies.product_digital_master_id = product.uuid`,
+      { companyId }
+    );
+
     query
-      .leftJoinAndSelect('product.product_companies', 'product_companies')
+      .leftJoin('product_companies.supplier', 'supplier')
+      .addSelect(['supplier.uuid', 'supplier.name'])
       .orderBy('product.name', 'ASC');
 
+    // query.andWhere('product_companies.status = 0');
     const result = await paginate(query, { page, limit });
-
-    return {
-      ...result,
-      data: {
-        ...result?.data,
-        content: result?.data.content.map((item) => ({
-          ...item,
-          product_companies:
-            item.product_companies.length > 0
-              ? item.product_companies[0]
-              : null,
-        })),
-      },
-    };
+    return result;
   }
 }

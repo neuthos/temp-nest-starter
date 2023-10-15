@@ -34,10 +34,9 @@ export class SuppliersController {
     @Query('page') page: number,
     @Query('limit') limit: number,
     @Query('name') name: string,
-    @Query('start') start: Date,
-    @Query('end') end: Date
+    @Query('status') status: string
   ): Promise<{ suppliers: Supplier[]; total: number }> {
-    return this.supplierService.findAll(page, limit, name, start, end);
+    return this.supplierService.findAll(page, limit, name, status);
   }
 
   @Get(':id')

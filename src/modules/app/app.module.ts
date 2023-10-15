@@ -11,6 +11,7 @@ import { CompanyModule } from '../company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { Module, ValidationError, ValidationPipe } from '@nestjs/common';
+import { ProductCompaniesModule } from '../product_companies/product_companies.module';
 import { ProductDigitalBrandsModule } from '../product_digital_brands/product_digital_brands.module';
 import { ProductDigitalCategoriesModule } from '../product_digital_categories/product_digital_categories.module';
 import { ProductDigitalMasterModule } from '../product_digital_master/product_digital_master.module';
@@ -33,6 +34,7 @@ import { UsersModule } from '../users/users.module';
     ProductDigitalCategoriesModule,
     ProductDigitalBrandsModule,
     ProductDigitalMasterModule,
+    ProductCompaniesModule,
   ],
   controllers: [AppController],
   providers: [

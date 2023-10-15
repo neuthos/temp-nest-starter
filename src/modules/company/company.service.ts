@@ -38,4 +38,13 @@ export class CompanyService {
       this.logger.log('🟢 DONE INSERT data COMPANY from CDC');
     }
   }
+
+  async getFee(companyId: string) {
+    const avianaFee = +process.env.AVIANA_FEE || 100;
+    const affiliatorFee = 0;
+    return {
+      companyId,
+      fee: avianaFee + affiliatorFee,
+    };
+  }
 }

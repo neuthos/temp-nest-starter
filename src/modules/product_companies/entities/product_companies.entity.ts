@@ -42,6 +42,9 @@ export class ProductCompany {
   @Column({ type: 'decimal', precision: 20, scale: 2 })
   margin: number;
 
+  @Column({ type: 'decimal', precision: 20, scale: 2, default: null })
+  buy_price: number;
+
   @Column({ length: 1, comment: '1: aktif, 0: tidak aktif' })
   status: string;
 
