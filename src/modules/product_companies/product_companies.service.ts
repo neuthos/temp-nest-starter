@@ -116,7 +116,6 @@ export class ProductCompaniesService {
         'productCompany.uuid',
         'productCompany.product_digital_master_id',
         'productCompany.buy_price',
-        'productCompany.buy_price AS "productCompany_sell_price"',
         'productCompany.margin',
         'supplier.uuid',
         'supplier.name',
