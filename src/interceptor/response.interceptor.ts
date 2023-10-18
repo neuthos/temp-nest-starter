@@ -20,7 +20,7 @@ export class ResponseInterceptor<T>
       map((data: DataResponse) => ({
         success: true,
         status: 200,
-        msg: data.message ?? '',
+        msg: data.message ?? 'Berhasil',
         data: data.data ? data.data : data,
       }))
     );

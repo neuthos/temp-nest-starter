@@ -6,8 +6,6 @@ export class RabbitDeserializer implements Deserializer {
       return value;
     }
 
-    console.log({ value }, 'FROM RABBITMQ DESERIALIZER');
-
     const data = { pattern: 'DEFAULT', data: value };
 
     if (value.table === 'companies') {

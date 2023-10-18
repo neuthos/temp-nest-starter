@@ -58,9 +58,9 @@ build-to-swr:
       fi
     - echo "build"
     # Build an image. k8s-dev is the organization name in SWR. Replace it to the actual name.
-    - docker build -t swr.ap-southeast-4.myhuaweicloud.com/irsx/service-simpin$tag .
+    - docker build -t swr.ap-southeast-4.myhuaweicloud.com/irsx/service-productdigital$tag .
     # Push the image to SWR.
-    - docker push swr.ap-southeast-4.myhuaweicloud.com/irsx/service-simpin$tag
+    - docker push swr.ap-southeast-4.myhuaweicloud.com/irsx/service-productdigital$tag
   only:
     - tags
     - master

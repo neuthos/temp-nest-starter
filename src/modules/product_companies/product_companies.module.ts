@@ -6,6 +6,8 @@ import { ProductCompany } from './entities/product_companies.entity';
 import { ProductDigitalBrand } from '../product_digital_brands/entities/product_digital_brand.entity';
 import { ProductDigitalMaster } from '../product_digital_master/entites/product_digital_master.entity';
 import { ProductDigitalMasterService } from '../product_digital_master/product_digital_master.service';
+import { Supplier } from '../suppliers/entities/suppliers.entity';
+import { SuppliersService } from '../suppliers/suppliers.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
@@ -14,10 +16,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       ProductCompany,
       ProductDigitalMaster,
       ProductDigitalBrand,
+      Supplier,
     ]),
   ],
   controllers: [ProductCompaniesController],
-  providers: [ProductCompaniesService, ProductDigitalMasterService],
+  providers: [
+    ProductCompaniesService,
+    ProductDigitalMasterService,
+    SuppliersService,
+  ],
 })
 export class ProductCompaniesModule {
   configure(consumer: MiddlewareConsumer) {

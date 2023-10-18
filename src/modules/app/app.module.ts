@@ -10,6 +10,7 @@ import { AppService } from './app.service';
 import { CompanyModule } from '../company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { MobileModule } from '../mobile/mobile.module';
 import { Module, ValidationError, ValidationPipe } from '@nestjs/common';
 import { ProductCompaniesModule } from '../product_companies/product_companies.module';
 import { ProductDigitalBrandsModule } from '../product_digital_brands/product_digital_brands.module';
@@ -17,6 +18,7 @@ import { ProductDigitalCategoriesModule } from '../product_digital_categories/pr
 import { ProductDigitalMasterModule } from '../product_digital_master/product_digital_master.module';
 import { ResponseInterceptor } from '@/interceptor/response.interceptor';
 import { SuppliersModule } from '../suppliers/suppliers.module';
+import { TransactionsModule } from '../transactions/transactions.module';
 import { TypeOrmConfigService } from '../typeorm/typeorm.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
@@ -35,6 +37,8 @@ import { UsersModule } from '../users/users.module';
     ProductDigitalBrandsModule,
     ProductDigitalMasterModule,
     ProductCompaniesModule,
+    MobileModule,
+    TransactionsModule,
   ],
   controllers: [AppController],
   providers: [

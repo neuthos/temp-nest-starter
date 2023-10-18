@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import { ApiResponseOptions } from '@nestjs/swagger';
 import { INestApplication } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
@@ -71,3 +72,9 @@ export function formatToStringDateTimezone(
 
   return formattedTime;
 }
+
+export const hashSHA256NonSalt = (text: string) => {
+  const hash = crypto.createHash('sha256');
+  hash.update(text);
+  return hash.digest('hex');
+};

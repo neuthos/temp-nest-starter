@@ -1,11 +1,12 @@
 /* eslint-disable no-await-in-loop */
+import { EntityManager, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
 import { NormalException } from '@/exception';
 import { ProductCompany } from './entities/product_companies.entity';
 import { ProductDigitalBrand } from '../product_digital_brands/entities/product_digital_brand.entity';
 import { ProductDigitalMasterService } from '../product_digital_master/product_digital_master.service';
-import { Repository } from 'typeorm';
+import { SuppliersService } from '../suppliers/suppliers.service';
 import paginate from '@/shared/pagination';
 
 @Injectable()
@@ -16,7 +17,8 @@ export class ProductCompaniesService {
     @InjectRepository(ProductDigitalBrand)
     private readonly brandRepository: Repository<ProductDigitalBrand>,
 
-    private readonly productDigitalMasterService: ProductDigitalMasterService
+    private readonly productDigitalMasterService: ProductDigitalMasterService,
+    private readonly supplierService: SuppliersService
   ) {}
 
   private async _validateCompanyId(
@@ -45,7 +47,7 @@ export class ProductCompaniesService {
     return productCompany;
   }
 
-  async list(filter: any, companyId: string) {
+  async list(filter: any, companyId: string, customSelection?: string[]) {
     const page = filter.page || 1;
     const limit = filter.limit || 1;
 
@@ -65,6 +67,8 @@ export class ProductCompaniesService {
           companyId,
         }
       );
+
+    if (customSelection) query.select(customSelection);
 
     if (filter.product_digital_brand_id) {
       query.andWhere(
@@ -96,6 +100,39 @@ export class ProductCompaniesService {
 
     query.orderBy('product_digital_master.name', 'ASC');
     const result = await paginate(query, { page, limit });
+    return result;
+  }
+
+  async mobileList(brandId: string, companyId: string) {
+    const query = this.productCompanyRepo
+      .createQueryBuilder('productCompany')
+      .leftJoinAndMapOne(
+        'productCompany.product_digital_master',
+        'product_digital_master',
+        'product_digital_master',
+        'productCompany.product_digital_master_id = product_digital_master.uuid'
+      )
+      .select([
+        'productCompany.uuid',
+        'productCompany.product_digital_master_id',
+        'productCompany.buy_price',
+        'productCompany.buy_price AS "productCompany_sell_price"',
+        'productCompany.margin',
+        'supplier.uuid',
+        'supplier.name',
+      ])
+      .leftJoin('productCompany.supplier', 'supplier')
+      .where(
+        'productCompany.company_id = :companyId AND product_digital_master.status = 1',
+        {
+          companyId,
+        }
+      );
+
+    const result = await query
+      .orderBy('product_digital_master.name', 'ASC')
+      .getManyAndCount();
+
     return result;
   }
 
@@ -223,5 +260,63 @@ export class ProductCompaniesService {
     );
 
     return this.updateMargin(productIds, margin, companyId);
+  }
+
+  async updateMarginAllProducts(companyId: string, margin: number) {
+    const prodDataRaw = await this.productDigitalMasterService.list(
+      {
+        page: 1,
+        limit: 99999,
+      },
+      companyId
+    );
+
+    const productIds = prodDataRaw?.data?.content?.map(
+      (el: any) => el.product_companies?.uuid
+    );
+
+    return this.updateMargin(productIds, margin, companyId);
+  }
+
+  async mapSupplierProductPrice(payload: {
+    trx: EntityManager;
+    supplierId: string;
+    productCompanyId: string;
+  }): Promise<{
+    feeToAviana: number;
+    feeAffiliate: number;
+    buyPriceWithFee: number;
+    marginFee: number;
+    sellPriceWithMargin: number;
+  }> {
+    const supplier = await this.supplierService.findOne(payload.supplierId);
+    const isQpaySupplier: boolean = supplier.uuid === process.env.QPAY_UUID;
+
+    const productCompany = await this.productCompanyRepo.findOne({
+      where: { uuid: payload.productCompanyId, status: 1 },
+    });
+
+    if (!productCompany) {
+      throw NormalException.NOTFOUND('Produk tidak ditemukan');
+    }
+
+    const feeToAviana: number = +process.env.AVIANA_FEE || 100;
+    const feeAffiliate: number = 0; // TODO
+    const marginFee: number = +productCompany.margin;
+
+    let buyPriceWithFee: number = +productCompany.buy_price;
+    if (isQpaySupplier) {
+      buyPriceWithFee = +productCompany.product_digital_master.buy_price;
+    }
+
+    const sellPriceWithMargin = buyPriceWithFee + marginFee;
+
+    return {
+      feeToAviana,
+      feeAffiliate,
+      buyPriceWithFee,
+      marginFee,
+      sellPriceWithMargin,
+    };
   }
 }

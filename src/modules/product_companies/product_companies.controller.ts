@@ -85,6 +85,20 @@ export class ProductCompaniesController {
     );
   }
 
+  @Patch('update-margin/all')
+  async updateMarginAllProduct(
+    @Body()
+    updateProductCompanyStatusDto: {
+      margin: number;
+    },
+    @Headers() header: HeaderParam
+  ): Promise<string> {
+    return this.productCompaniesService.updateMarginAllProducts(
+      header.companyId,
+      updateProductCompanyStatusDto.margin
+    );
+  }
+
   @Patch('update-supplier')
   async updateSupplier(
     @Body()

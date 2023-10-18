@@ -46,4 +46,15 @@ export class UsersService {
       this.logger.log('🟢 DO UPDATE data USER from CDC 🟢');
     }
   }
+
+  async getUserPin(userId: string) {
+    const user = await this.userRepo.findOne({
+      where: {
+        user_id: userId,
+      },
+      select: ['pin'],
+    });
+
+    return user;
+  }
 }

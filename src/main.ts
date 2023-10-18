@@ -26,6 +26,9 @@ const bootstrap = async () => {
         durable: true,
       },
       deserializer: new RabbitDeserializer(),
+      clientProperties: {
+        connection_name: `PRODUCT DIGITAL SERVICE FOR STREAM USER`,
+      },
     },
   });
 

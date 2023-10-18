@@ -2,6 +2,7 @@ import { Company } from './entities/company.entity';
 import { CompanyDataStream } from './types/company-stream.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable, Logger } from '@nestjs/common';
+import { NormalException } from '@/exception';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -46,5 +47,23 @@ export class CompanyService {
       companyId,
       fee: avianaFee + affiliatorFee,
     };
+  }
+
+  async updateDefaultFee(companyId: string, defaultFee: number) {
+    const company = await this.companyrepository.findOne({
+      where: {
+        uuid: companyId,
+      },
+    });
+
+    if (!company) {
+      throw NormalException.NOTFOUND('Koperasi tidak ditemukan');
+    }
+
+    company.default_fee = defaultFee;
+
+    await this.companyrepository.save(company);
+
+    return 'Berhasil mengubah default fee';
   }
 }

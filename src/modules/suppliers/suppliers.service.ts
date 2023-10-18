@@ -42,7 +42,7 @@ export class SuppliersService {
   async findOne(id: string): Promise<Supplier> {
     const supplier = await this.supplierRepository.findOne(id);
     if (!supplier) {
-      throw new NotFoundException(`Supplier with ID ${id} not found`);
+      throw new NotFoundException(`Supplier dengan ID ${id} tidak ditemukan`);
     }
     return supplier;
   }
