@@ -30,7 +30,6 @@ export class ProductDigitalMasterService {
       );
     }
 
-    console.log({ filter }, 123123);
     if (filter.is_bill_payment !== undefined) {
       query.andWhere('product.is_bill_payment = :is_bill_payment', {
         is_bill_payment: +filter.is_bill_payment,

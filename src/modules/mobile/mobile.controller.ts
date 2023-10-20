@@ -18,8 +18,11 @@ export class MobileController {
   @Get('products')
   async getProductByBrand(
     @Headers('companyId') companyId: string,
-    @Query('brandId') brandId: string
+    @Query('brand_id') brandId: string
   ) {
-    return this.mobileService.getProductByBrand(brandId, companyId);
+    return this.mobileService.getProductByBrand(
+      brandId,
+      '742072a3-8f1c-442c-9486-99da8c013002'
+    );
   }
 }

@@ -1,5 +1,6 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable, Logger } from '@nestjs/common';
+import { NormalException } from '@/exception';
 import { Repository } from 'typeorm';
 import { User } from './entities/users.entity';
 import UserStreamData from './types/userStream.types';
@@ -55,6 +56,15 @@ export class UsersService {
       select: ['pin'],
     });
 
+    return user;
+  }
+
+  async userDetail(userId: string): Promise<User> {
+    const user = await this.userRepo.findOne({
+      where: { uuid: userId },
+    });
+
+    if (!user) throw NormalException.NOTFOUND('User tidak ditemukan');
     return user;
   }
 }

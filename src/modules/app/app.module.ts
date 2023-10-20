@@ -9,6 +9,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CompanyModule } from '../company/company.module';
 import { ConfigModule } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
 import { LoggerModule } from 'nestjs-pino';
 import { MobileModule } from '../mobile/mobile.module';
 import { Module, ValidationError, ValidationPipe } from '@nestjs/common';
@@ -30,6 +31,7 @@ import { UsersModule } from '../users/users.module';
     TypeOrmModule.forRootAsync({
       useClass: TypeOrmConfigService,
     }),
+    HttpModule,
     CompanyModule,
     UsersModule,
     SuppliersModule,

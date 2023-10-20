@@ -25,7 +25,7 @@ export class ProductCompaniesController {
   async updateStatus(
     @Body()
     updateProductCompanyStatusDto: {
-      status: string;
+      status: number;
       productCompanyIds: string[];
     },
     @Headers() header: HeaderParam

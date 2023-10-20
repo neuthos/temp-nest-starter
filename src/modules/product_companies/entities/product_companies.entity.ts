@@ -45,8 +45,8 @@ export class ProductCompany {
   @Column({ type: 'decimal', precision: 20, scale: 2, default: null })
   buy_price: number;
 
-  @Column({ length: 1, comment: '1: aktif, 0: tidak aktif' })
-  status: string;
+  @Column({ type: 'int', comment: '1: aktif, 0: tidak aktif', default: 0 })
+  status: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   created_at?: Date;

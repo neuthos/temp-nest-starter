@@ -26,6 +26,20 @@ export class ProductDigitalCategory {
   @Column({ default: 0, nullable: true })
   priority: number;
 
+  @Column({
+    type: 'varchar',
+    enum: [
+      'CARD_DENOM',
+      'LIST_VIEW',
+      'LIST_PRODUCT_CARD_DENOM',
+      'CARD_DENOM_INQUIRY',
+      'POSTPAID',
+      'POSTPAID_DAERAH',
+    ],
+    default: null,
+  })
+  layout_type: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   created_at?: Date;
 

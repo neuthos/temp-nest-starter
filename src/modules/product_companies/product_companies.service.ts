@@ -103,6 +103,14 @@ export class ProductCompaniesService {
     return result;
   }
 
+  async detail(productCompanyId: string): Promise<ProductCompany> {
+    const data = await this.productCompanyRepo.findOne({
+      where: { uuid: productCompanyId },
+    });
+    if (!data) throw NormalException.NOTFOUND('Produk tidak ditemukan');
+    return data;
+  }
+
   async mobileList(brandId: string, companyId: string) {
     const query = this.productCompanyRepo
       .createQueryBuilder('productCompany')
@@ -112,35 +120,50 @@ export class ProductCompaniesService {
         'product_digital_master',
         'productCompany.product_digital_master_id = product_digital_master.uuid'
       )
+      .leftJoin('productCompany.supplier', 'supplier')
       .select([
         'productCompany.uuid',
         'productCompany.product_digital_master_id',
-        'productCompany.buy_price',
+        'productCompany.company_id',
+        'productCompany.supplier_id',
         'productCompany.margin',
-        'supplier.uuid',
+        'productCompany.buy_price',
+
+        'product_digital_master.product_digital_brand_id',
+        'product_digital_master.name',
+        'product_digital_master.description',
+        'product_digital_master.denom',
+        'product_digital_master.product_code',
+        'product_digital_master.buy_price',
+        'product_digital_master.is_bill_payment',
+
         'supplier.name',
       ])
-      .leftJoin('productCompany.supplier', 'supplier')
       .where(
-        'productCompany.company_id = :companyId AND product_digital_master.status = 1',
+        'productCompany.company_id = :companyId AND productCompany.status = 1 AND product_digital_master.product_digital_brand_id = :brandId',
         {
           companyId,
+          brandId,
         }
       );
+    console.log({
+      companyId,
+      brandId,
+    });
 
     const result = await query
       .orderBy('product_digital_master.name', 'ASC')
-      .getManyAndCount();
+      .getMany();
 
     return result;
   }
 
   async updateStatus(
     productCompanyIds: string[],
-    status: string,
+    status: number,
     companyId: string
   ): Promise<string> {
-    if (status !== '0' && status !== '1') {
+    if (status !== 0 && status !== 1) {
       throw NormalException.UNEXPECTED('Invalid Status');
     }
 
@@ -154,9 +177,7 @@ export class ProductCompaniesService {
       await this.productCompanyRepo.save(productCompany);
     }
 
-    return `Berhasil update status menjadi ${
-      status === '0' ? 'Nonaktif' : 'Aktif'
-    }`;
+    return `Berhasil update status menjadi ${!status ? 'Nonaktif' : 'Aktif'}`;
   }
 
   async updateMargin(
@@ -279,21 +300,18 @@ export class ProductCompaniesService {
 
   async mapSupplierProductPrice(payload: {
     trx: EntityManager;
-    supplierId: string;
-    productCompanyId: string;
+    productCompany: ProductCompany;
   }): Promise<{
     feeToAviana: number;
     feeAffiliate: number;
-    buyPriceWithFee: number;
+    buyPrice: number;
     marginFee: number;
     sellPriceWithMargin: number;
   }> {
-    const supplier = await this.supplierService.findOne(payload.supplierId);
-    const isQpaySupplier: boolean = supplier.uuid === process.env.QPAY_UUID;
+    const { productCompany } = payload;
+    const { supplier } = productCompany;
 
-    const productCompany = await this.productCompanyRepo.findOne({
-      where: { uuid: payload.productCompanyId, status: 1 },
-    });
+    const isQpaySupplier: boolean = supplier.uuid === process.env.QPAY_UUID;
 
     if (!productCompany) {
       throw NormalException.NOTFOUND('Produk tidak ditemukan');
@@ -303,17 +321,17 @@ export class ProductCompaniesService {
     const feeAffiliate: number = 0; // TODO
     const marginFee: number = +productCompany.margin;
 
-    let buyPriceWithFee: number = +productCompany.buy_price;
+    let buyPrice: number = +productCompany.buy_price;
     if (isQpaySupplier) {
-      buyPriceWithFee = +productCompany.product_digital_master.buy_price;
+      buyPrice = +productCompany.product_digital_master.buy_price;
     }
 
-    const sellPriceWithMargin = buyPriceWithFee + marginFee;
+    const sellPriceWithMargin = buyPrice + marginFee;
 
     return {
       feeToAviana,
       feeAffiliate,
-      buyPriceWithFee,
+      buyPrice,
       marginFee,
       sellPriceWithMargin,
     };

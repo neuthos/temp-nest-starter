@@ -77,7 +77,7 @@ export class Transaction {
   @Column('varchar')
   supplier_host: string;
 
-  @Column('varchar', { unique: true, nullable: false })
+  @Column('varchar', { unique: true, default: null })
   reference_number: string;
 
   @Column('varchar', { nullable: true })
@@ -86,8 +86,12 @@ export class Transaction {
   @Column('varchar')
   destination: string;
 
-  @Column('char')
-  status: string;
+  @Column({
+    type: 'int',
+    comment: '0 = Pending, 1 = Success, 2 = Gagal',
+    default: 0,
+  })
+  status: number;
 
   @Column('varchar')
   message: string;
