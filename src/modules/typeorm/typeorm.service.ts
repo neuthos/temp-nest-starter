@@ -18,7 +18,7 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       synchronize: false,
       dropSchema: false,
       migrationsRun: false,
-      logging: true,
+      logging: false,
       migrations: [join(__dirname, '../migrations/**/*{.ts,.js}')],
       cli: {
         migrationsDir: join(__dirname, '../migrations'),

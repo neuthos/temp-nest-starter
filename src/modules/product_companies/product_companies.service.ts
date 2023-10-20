@@ -6,7 +6,6 @@ import { NormalException } from '@/exception';
 import { ProductCompany } from './entities/product_companies.entity';
 import { ProductDigitalBrand } from '../product_digital_brands/entities/product_digital_brand.entity';
 import { ProductDigitalMasterService } from '../product_digital_master/product_digital_master.service';
-import { SuppliersService } from '../suppliers/suppliers.service';
 import paginate from '@/shared/pagination';
 
 @Injectable()
@@ -17,8 +16,7 @@ export class ProductCompaniesService {
     @InjectRepository(ProductDigitalBrand)
     private readonly brandRepository: Repository<ProductDigitalBrand>,
 
-    private readonly productDigitalMasterService: ProductDigitalMasterService,
-    private readonly supplierService: SuppliersService
+    private readonly productDigitalMasterService: ProductDigitalMasterService
   ) {}
 
   private async _validateCompanyId(
@@ -244,7 +242,7 @@ export class ProductCompaniesService {
     productCompanyIds: string[],
     supplierId: string,
     companyId: string,
-    buyPrice: number
+    buyPrice?: number
   ): Promise<string> {
     for (let i = 0; i < productCompanyIds.length; i += 1) {
       const productCompanyId = productCompanyIds[i];
@@ -376,5 +374,11 @@ export class ProductCompaniesService {
       marginFee,
       sellPriceWithMargin,
     };
+  }
+
+  async productCompaniesByKeyVal(key: string, val: string) {
+    return this.productCompanyRepo.find({
+      where: { [key]: val },
+    });
   }
 }

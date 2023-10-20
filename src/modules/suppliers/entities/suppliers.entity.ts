@@ -2,9 +2,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Company } from '@/modules/company/entities/company.entity';
 
 @Entity('suppliers')
 export class Supplier {
@@ -16,6 +19,13 @@ export class Supplier {
 
   @Column()
   host: string;
+
+  @Column({ type: 'uuid', default: null })
+  company_id?: string;
+
+  @ManyToOne(() => Company)
+  @JoinColumn({ name: 'company_id' })
+  company: Company;
 
   @Column({ default: 0 })
   status: number;

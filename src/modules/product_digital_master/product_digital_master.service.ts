@@ -59,7 +59,6 @@ export class ProductDigitalMasterService {
       .addSelect(['supplier.uuid', 'supplier.name'])
       .orderBy('product.name', 'ASC');
 
-    // query.andWhere('product_companies.status = 0');
     const result = await paginate(query, { page, limit });
     return result;
   }
