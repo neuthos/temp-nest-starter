@@ -111,51 +111,92 @@ export class ProductCompaniesService {
     return data;
   }
 
-  async mobileList(brandId: string, companyId: string) {
+  async mobileList(brandIds: string[], companyId: string, prefix?: string) {
     const query = this.productCompanyRepo
       .createQueryBuilder('productCompany')
-      .leftJoinAndMapOne(
+      .leftJoin(
         'productCompany.product_digital_master',
-        'product_digital_master',
-        'product_digital_master',
-        'productCompany.product_digital_master_id = product_digital_master.uuid'
+        'product_digital_master'
       )
       .leftJoin('productCompany.supplier', 'supplier')
-      .select([
-        'productCompany.uuid',
-        'productCompany.product_digital_master_id',
-        'productCompany.company_id',
-        'productCompany.supplier_id',
-        'productCompany.margin',
-        'productCompany.buy_price',
-
-        'product_digital_master.product_digital_brand_id',
-        'product_digital_master.name',
-        'product_digital_master.description',
-        'product_digital_master.denom',
-        'product_digital_master.product_code',
-        'product_digital_master.buy_price',
-        'product_digital_master.is_bill_payment',
-
-        'supplier.name',
-      ])
-      .where(
-        'productCompany.company_id = :companyId AND productCompany.status = 1 AND product_digital_master.product_digital_brand_id = :brandId',
-        {
-          companyId,
-          brandId,
-        }
+      .leftJoin(
+        'product_digital_master.product_digital_brand',
+        'product_digital_brand'
       );
-    console.log({
-      companyId,
-      brandId,
-    });
 
-    const result = await query
+    if (prefix) {
+      query.leftJoinAndMapOne(
+        'product_digital_brand.product_brand_prefix',
+        'product_brand_prefix',
+        'product_brand_prefix',
+        'product_digital_brand.uuid = product_brand_prefix.product_digital_brand_id AND product_brand_prefix.prefix LIKE :prefix',
+        { prefix: `%${prefix}` }
+      );
+    }
+
+    query.where('productCompany.company_id = :companyId', { companyId });
+    query.andWhere('productCompany.status = 1');
+    query.andWhere('product_digital_master.status = 1');
+    query.andWhere(
+      'product_digital_master.product_digital_brand_id IN (:...brandIds)',
+      { brandIds }
+    );
+
+    if (prefix) {
+      query.andWhere('product_brand_prefix IS NOT NULL');
+    }
+
+    const selectCol = [
+      'productCompany.uuid',
+      'productCompany.product_digital_master_id',
+      'productCompany.company_id',
+      'productCompany.supplier_id',
+      'productCompany.margin',
+      'productCompany.buy_price',
+      'product_digital_master.product_digital_brand_id',
+      'product_digital_master.name',
+      'product_digital_master.description',
+      'product_digital_master.denom',
+      'product_digital_master.product_code',
+      'product_digital_master.is_bill_payment',
+      'supplier.uuid',
+      'supplier.name',
+      'product_digital_brand.uuid',
+      'product_digital_brand.name',
+      'product_digital_brand.icon',
+    ];
+
+    if (prefix) {
+      selectCol.push('product_brand_prefix.uuid');
+      selectCol.push('product_brand_prefix.prefix');
+    }
+
+    const productList = await query
+      .select(selectCol)
       .orderBy('product_digital_master.name', 'ASC')
       .getMany();
 
-    return result;
+    return productList.map((item) => ({
+      uuid: item.uuid,
+      product_digital_master_id: item.product_digital_master_id,
+      company_id: item.company_id,
+      supplier_id: item.supplier_id,
+      sell_price: +item.buy_price + +item.margin,
+      product_digital_master: {
+        name: item.product_digital_master.name,
+        description: item.product_digital_master.description,
+        denom: item.product_digital_master.denom,
+        product_code: item.product_digital_master.product_code,
+        is_bill_payment: item.product_digital_master.is_bill_payment,
+        product_digital_brand: {
+          ...item.product_digital_master.product_digital_brand,
+        },
+      },
+      supplier: {
+        uuid: item.supplier.uuid,
+        name: item.supplier.name,
+      },
+    }));
   }
 
   async updateStatus(

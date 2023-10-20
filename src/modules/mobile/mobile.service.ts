@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { NormalException } from '@/exception';
 import { ProductCompaniesService } from '../product_companies/product_companies.service';
 import { ProductDigitalBrandsService } from '../product_digital_brands/product_digital_brands.service';
 import { ProductDigitalCategoriesService } from '../product_digital_categories/product_digital_categories.service';
@@ -21,7 +22,12 @@ export class MobileService {
     return data;
   }
 
-  async getProductByBrand(brandId: string, companyId: string) {
-    return this.productCompaniesService.mobileList(brandId, companyId);
+  async getProductByBrand(brandId: string, companyId: string, prefix?: string) {
+    if (!brandId) {
+      throw NormalException.NOTFOUND('Query tidak lengkap');
+    }
+    const brandIds = brandId.split(',');
+
+    return this.productCompaniesService.mobileList(brandIds, companyId, prefix);
   }
 }

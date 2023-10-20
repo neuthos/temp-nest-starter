@@ -1,3 +1,4 @@
+/* eslint-disable import/no-cycle */
 import {
   Column,
   CreateDateColumn,
@@ -7,7 +8,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ProductDigitalCategory } from '../../product_digital_categories/entities/product_digital_categories.entity'; // Pastikan Anda mengganti path sesuai dengan struktur berkas Anda.
+// Pastikan Anda mengganti path sesuai dengan struktur berkas Anda.
+import { ProductDigitalCategory } from '../../product_digital_categories/entities/product_digital_categories.entity';
 
 @Entity('product_digital_brand')
 export class ProductDigitalBrand {
