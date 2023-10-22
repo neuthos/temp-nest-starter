@@ -109,7 +109,7 @@ export class ProductCompaniesService {
     return data;
   }
 
-  async mobileList(brandIds: string[], companyId: string, prefix?: string) {
+  async mobileList(brandId: string, companyId: string, prefix?: string) {
     const query = this.productCompanyRepo
       .createQueryBuilder('productCompany')
       .leftJoin(
@@ -127,8 +127,11 @@ export class ProductCompaniesService {
         'product_digital_brand.product_brand_prefix',
         'product_brand_prefix',
         'product_brand_prefix',
-        'product_digital_brand.uuid = product_brand_prefix.product_digital_brand_id AND product_brand_prefix.prefix LIKE :prefix',
-        { prefix: `%${prefix}` }
+        'product_digital_brand.uuid = product_brand_prefix.product_digital_brand_id',
+        {
+          prefix,
+          wildcard: '%',
+        }
       );
     }
 
@@ -136,12 +139,18 @@ export class ProductCompaniesService {
     query.andWhere('productCompany.status = 1');
     query.andWhere('product_digital_master.status = 1');
     query.andWhere(
-      'product_digital_master.product_digital_brand_id IN (:...brandIds)',
-      { brandIds }
+      'product_digital_master.product_digital_brand_id = :brandId',
+      { brandId }
     );
 
     if (prefix) {
-      query.andWhere('product_brand_prefix IS NOT NULL');
+      query.andWhere(
+        "product_brand_prefix IS NOT NULL AND :prefix LIKE (product_brand_prefix.prefix || '%')",
+        {
+          prefix,
+          wildcard: '%',
+        }
+      );
     }
 
     const selectCol = [
@@ -174,7 +183,7 @@ export class ProductCompaniesService {
       .orderBy('product_digital_master.name', 'ASC')
       .getMany();
 
-    return productList.map((item) => ({
+    const dataToReturn = productList.map((item) => ({
       uuid: item.uuid,
       product_digital_master_id: item.product_digital_master_id,
       company_id: item.company_id,
@@ -195,6 +204,8 @@ export class ProductCompaniesService {
         name: item.supplier.name,
       },
     }));
+
+    return dataToReturn;
   }
 
   async updateStatus(

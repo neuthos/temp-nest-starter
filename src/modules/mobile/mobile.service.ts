@@ -26,8 +26,7 @@ export class MobileService {
     if (!brandId) {
       throw NormalException.NOTFOUND('Query tidak lengkap');
     }
-    const brandIds = brandId.split(',');
 
-    return this.productCompaniesService.mobileList(brandIds, companyId, prefix);
+    return this.productCompaniesService.mobileList(brandId, companyId, prefix);
   }
 }
