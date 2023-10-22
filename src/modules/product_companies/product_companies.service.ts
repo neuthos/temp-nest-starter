@@ -109,7 +109,7 @@ export class ProductCompaniesService {
     return data;
   }
 
-  async mobileList(brandId: string, companyId: string, prefix?: string) {
+  async mobileList(brandIds: string[], companyId: string, prefix?: string) {
     const query = this.productCompanyRepo
       .createQueryBuilder('productCompany')
       .leftJoin(
@@ -139,8 +139,8 @@ export class ProductCompaniesService {
     query.andWhere('productCompany.status = 1');
     query.andWhere('product_digital_master.status = 1');
     query.andWhere(
-      'product_digital_master.product_digital_brand_id = :brandId',
-      { brandId }
+      'product_digital_master.product_digital_brand_id IN (:...brandIds)',
+      { brandIds }
     );
 
     if (prefix) {
