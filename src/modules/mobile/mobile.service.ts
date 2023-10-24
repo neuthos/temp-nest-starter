@@ -30,4 +30,34 @@ export class MobileService {
 
     return this.productCompaniesService.mobileList(brandIds, companyId, prefix);
   }
+
+  getPaymentMethod() {
+    return [
+      {
+        label: 'Cash',
+        value: 'CASH',
+        icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
+      },
+      {
+        label: 'Allowance',
+        value: 'ALLOWANCE',
+        icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
+      },
+      {
+        label: 'Qris',
+        value: 'QRIS',
+        icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
+      },
+      {
+        label: 'E-Wallet',
+        value: 'EWALLET',
+        icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
+      },
+      {
+        label: 'Metode Pembayaran Lainnya',
+        value: 'PAYMENT_METHOD',
+        icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
+      },
+    ];
+  }
 }

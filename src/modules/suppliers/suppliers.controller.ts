@@ -41,14 +41,16 @@ export class SuppliersController {
     @Query('page') page: number,
     @Query('limit') limit: number,
     @Query('name') name: string,
-    @Query('status') status: string
+    @Query('status') status: string,
+    @Query('type') type: string
   ) {
     return this.supplierService.findAll(
       header.companyId,
       page,
       limit,
       name,
-      status
+      status,
+      type
     );
   }
 

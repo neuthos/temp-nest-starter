@@ -1,4 +1,5 @@
 /* eslint-disable no-await-in-loop */
+import { CompanyService } from '../company/company.service';
 import { EntityManager, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
@@ -16,12 +17,14 @@ export class ProductCompaniesService {
     @InjectRepository(ProductDigitalBrand)
     private readonly brandRepository: Repository<ProductDigitalBrand>,
 
-    private readonly productDigitalMasterService: ProductDigitalMasterService
+    private readonly productDigitalMasterService: ProductDigitalMasterService,
+    private readonly companyService: CompanyService
   ) {}
 
   private async _validateCompanyId(
     productCompanyId: string,
-    companyId: string
+    companyId: string,
+    doCreate?: boolean
   ): Promise<ProductCompany> {
     const productCompany = await this.productCompanyRepo.findOne({
       where: { uuid: productCompanyId, company_id: companyId },
@@ -37,6 +40,7 @@ export class ProductCompaniesService {
     });
 
     if (!productCompany) {
+      if (doCreate) return null;
       throw NormalException.NOTFOUND(
         'Product company not found or invalid company ID.'
       );
@@ -97,6 +101,7 @@ export class ProductCompaniesService {
     }
 
     query.orderBy('product_digital_master.name', 'ASC');
+
     const result = await paginate(query, { page, limit });
     return result;
   }
@@ -162,6 +167,7 @@ export class ProductCompaniesService {
       'productCompany.buy_price',
       'product_digital_master.product_digital_brand_id',
       'product_digital_master.name',
+      'product_digital_master.buy_price',
       'product_digital_master.description',
       'product_digital_master.denom',
       'product_digital_master.product_code',
@@ -188,7 +194,10 @@ export class ProductCompaniesService {
       product_digital_master_id: item.product_digital_master_id,
       company_id: item.company_id,
       supplier_id: item.supplier_id,
-      sell_price: +item.buy_price + +item.margin,
+      sell_price:
+        (item.supplier_id === process.env.QPAY_UUID
+          ? +item.product_digital_master.buy_price
+          : +item.buy_price) + +item.margin,
       product_digital_master: {
         name: item.product_digital_master.name,
         description: item.product_digital_master.description,
@@ -221,8 +230,10 @@ export class ProductCompaniesService {
       const productCompanyId = productCompanyIds[i];
       const productCompany = await this._validateCompanyId(
         productCompanyId,
-        companyId
+        companyId,
+        status === 1
       );
+
       productCompany.status = status;
       await this.productCompanyRepo.save(productCompany);
     }
@@ -304,7 +315,9 @@ export class ProductCompaniesService {
       );
 
       prodDataRaw?.data?.content?.forEach((el: any) => {
-        productIds.push(el.product_companies?.uuid);
+        if (el.product_companies) {
+          productIds.push(el.product_companies?.uuid);
+        }
       });
     }
 
@@ -328,6 +341,7 @@ export class ProductCompaniesService {
     const productIds = prodDataRaw?.data?.content?.map(
       (el: any) => el.product_companies?.uuid
     );
+    console.log(productIds.length);
 
     return this.updateMargin(productIds, margin, companyId);
   }
@@ -346,6 +360,38 @@ export class ProductCompaniesService {
     );
 
     return this.updateMargin(productIds, margin, companyId);
+  }
+
+  async syncProduct(companyId: string) {
+    const company = await this.companyService.detail(companyId);
+    const dataProductRaw = await this.productDigitalMasterService.list(
+      {
+        page: 1,
+        limit: 9999,
+        noProductCompanies: true,
+      },
+      companyId
+    );
+
+    let count = 0;
+
+    for (let i = 0; i < dataProductRaw?.data?.content.length; i += 1) {
+      const data = dataProductRaw.data.content[i];
+      if (!data.product_companies) {
+        const newProductCompany = this.productCompanyRepo.create({
+          product_digital_master_id: data.uuid,
+          company_id: companyId,
+          supplier_id: process.env.QPAY_UUID,
+          margin: company.default_fee || 0,
+          status: 1,
+        });
+
+        await this.productCompanyRepo.save(newProductCompany);
+        count += 1;
+      }
+    }
+
+    return `Berhasil mengaktifkan produk sebanyak ${count} produk`;
   }
 
   async mapSupplierProductPrice(payload: {

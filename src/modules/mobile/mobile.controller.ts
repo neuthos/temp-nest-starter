@@ -27,4 +27,9 @@ export class MobileController {
       prefix
     );
   }
+
+  @Get('payment-method')
+  async getPaymentMethod() {
+    return this.mobileService.getPaymentMethod();
+  }
 }

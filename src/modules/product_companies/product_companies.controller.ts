@@ -32,7 +32,7 @@ export class ProductCompaniesController {
   ): Promise<any> {
     return this.productCompaniesService.updateStatus(
       updateProductCompanyStatusDto.productCompanyIds,
-      updateProductCompanyStatusDto.status,
+      +updateProductCompanyStatusDto.status,
       header.companyId
     );
   }
@@ -115,5 +115,10 @@ export class ProductCompaniesController {
       header.companyId,
       updateProductCompanyStatusDto.buyPrice
     );
+  }
+
+  @Patch('sync-product')
+  async syncProduct(@Headers() header: HeaderParam): Promise<string> {
+    return this.productCompaniesService.syncProduct(header.companyId);
   }
 }

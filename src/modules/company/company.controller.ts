@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch } from '@nestjs/common';
 import { CompanyDataStream } from './types/company-stream.types';
 import { CompanyService } from './company.service';
 import { HeaderParam } from '@/shared/interfaces';
@@ -16,6 +16,11 @@ export class CompanyController {
   @Get('fee')
   async getFee(@Headers() header: HeaderParam): Promise<any> {
     return this.companyService.getFee(header.companyId);
+  }
+
+  @Get(':companyId')
+  async getDetail(@Param('companyId') companyId: string): Promise<any> {
+    return this.companyService.detail(companyId);
   }
 
   @Patch('default-margin')

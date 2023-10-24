@@ -1,3 +1,5 @@
+import { Company } from '../company/entities/company.entity';
+import { CompanyService } from '../company/company.service';
 import { KoperasiMiddleware } from '@/middleware/jwt-strategy';
 import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { ProductCompaniesService } from '../product_companies/product_companies.service';
@@ -19,6 +21,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       ProductDigitalBrand,
       ProductDigitalCategory,
       ProductDigitalMaster,
+      Company,
     ]),
   ],
   controllers: [SuppliersController],
@@ -26,6 +29,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     SuppliersService,
     ProductCompaniesService,
     ProductDigitalMasterService,
+    CompanyService,
   ],
 })
 export class SuppliersModule {

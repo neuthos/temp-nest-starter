@@ -66,4 +66,16 @@ export class CompanyService {
 
     return 'Berhasil mengubah default fee';
   }
+
+  async detail(companyId: string) {
+    const data = await this.companyrepository.findOne({
+      where: { uuid: companyId },
+      select: ['uuid', 'default_fee', 'name'],
+    });
+
+    if (!data) {
+      throw NormalException.NOTFOUND('Koperasi tidak ditemukan');
+    }
+    return data;
+  }
 }

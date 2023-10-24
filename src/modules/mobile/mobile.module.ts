@@ -1,3 +1,5 @@
+import { Company } from '../company/entities/company.entity';
+import { CompanyService } from '../company/company.service';
 import { MobileController } from './mobile.controller';
 import { MobileService } from './mobile.service';
 import { Module } from '@nestjs/common';
@@ -21,6 +23,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       ProductCompany,
       ProductDigitalMaster,
       Supplier,
+      Company,
     ]),
   ],
 
@@ -32,6 +35,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     ProductCompaniesService,
     ProductDigitalMasterService,
     SuppliersService,
+    CompanyService,
   ],
 })
 export class MobileModule {}

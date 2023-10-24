@@ -1,3 +1,5 @@
+import { Company } from '../company/entities/company.entity';
+import { CompanyService } from '../company/company.service';
 import { HttpModule } from '@nestjs/axios';
 import { HttpRequestService } from '../http-request/http-request.service';
 import { Module } from '@nestjs/common';
@@ -26,6 +28,7 @@ import { UsersService } from '../users/users.service';
       ProductDigitalBrand,
       ProductDigitalMaster,
       User,
+      Company,
     ]),
   ],
   controllers: [TransactionsController],
@@ -37,6 +40,7 @@ import { UsersService } from '../users/users.service';
     RabbitmqPublisherService,
     ProductDigitalMasterService,
     HttpRequestService,
+    CompanyService,
   ],
 })
 export class TransactionsModule {}

@@ -15,13 +15,25 @@ export class ProductDigitalMasterService {
 
   async list(filter: any, companyId: string): Promise<any> {
     const page = filter.page || 1;
-    const limit = filter.limit || 1;
+    const limit = filter.limit || 10;
 
     const query = this.productMasterRepository
       .createQueryBuilder('product')
+      .leftJoinAndMapOne(
+        'product.product_companies',
+        'product_companies',
+        'product_companies',
+        `product_companies.company_id = :companyId AND product_companies.product_digital_master_id = product.uuid`,
+        { companyId }
+      )
+      .leftJoin('product_companies.supplier', 'supplier')
+      .leftJoin('product.product_digital_brand', 'brand')
+      .leftJoin('brand.product_digital_category', 'category')
       .where('product.status = 1')
-      .andWhere('product.company_id is null')
-      .orWhere('product.company_id = :companyId', { companyId });
+      .andWhere(
+        '(product.company_id is null OR product.company_id = :companyId)',
+        { companyId }
+      );
 
     if (filter.product_digital_brand_id) {
       query.andWhere(
@@ -37,7 +49,7 @@ export class ProductDigitalMasterService {
     }
 
     if (filter.name) {
-      query.andWhere('product.name LIKE :name', { name: `%${filter.name}%` });
+      query.andWhere('product.name ILIKE :name', { name: `%${filter.name}%` });
     }
 
     if (filter.product_code) {
@@ -46,18 +58,15 @@ export class ProductDigitalMasterService {
       });
     }
 
-    query.leftJoinAndMapOne(
-      'product.product_companies',
-      'product_companies',
-      'product_companies',
-      `product_companies.company_id = :companyId AND product_companies.product_digital_master_id = product.uuid`,
-      { companyId }
-    );
+    if (filter.noProductCompanies) {
+      query.andWhere('product_companies IS NOT NULL');
+    }
 
     query
-      .leftJoin('product_companies.supplier', 'supplier')
       .addSelect(['supplier.uuid', 'supplier.name'])
-      .orderBy('product.name', 'ASC');
+      .addSelect(['brand.uuid', 'brand.name', 'brand.icon'])
+      .addSelect(['category.uuid', 'category.name', 'category.icon'])
+      .orderBy('product_companies.uuid', 'ASC');
 
     const result = await paginate(query, { page, limit });
     return result;

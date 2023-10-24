@@ -34,7 +34,8 @@ export class SuppliersService {
     page: number = 1,
     limit: number = 10,
     name?: string,
-    status?: string
+    status?: string,
+    type?: string
   ): Promise<any> {
     const query = this.supplierRepository
       .createQueryBuilder('supplier')
@@ -45,7 +46,13 @@ export class SuppliersService {
     }
 
     if (status) {
-      query.andWhere('supplier.status = :status', { status });
+      query.andWhere('supplier.status = :status', { status: +status });
+    }
+
+    if (type === 'all') {
+      query.orWhere('supplier.uuid = :defaultSupplierID', {
+        defaultSupplierID: process.env.QPAY_UUID,
+      });
     }
 
     query.orderBy('supplier.created_at', 'DESC');
