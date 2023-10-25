@@ -341,7 +341,6 @@ export class ProductCompaniesService {
     const productIds = prodDataRaw?.data?.content?.map(
       (el: any) => el.product_companies?.uuid
     );
-    console.log(productIds.length);
 
     return this.updateMargin(productIds, margin, companyId);
   }
@@ -368,7 +367,7 @@ export class ProductCompaniesService {
       {
         page: 1,
         limit: 9999,
-        noProductCompanies: true,
+        noProductCompanies: false,
       },
       companyId
     );
