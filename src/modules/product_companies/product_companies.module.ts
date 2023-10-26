@@ -6,6 +6,7 @@ import { ProductCompaniesController } from './product_companies.controller';
 import { ProductCompaniesService } from './product_companies.service';
 import { ProductCompany } from './entities/product_companies.entity';
 import { ProductDigitalBrand } from '../product_digital_brands/entities/product_digital_brand.entity';
+import { ProductDigitalCategory } from '../product_digital_categories/entities/product_digital_categories.entity';
 import { ProductDigitalMaster } from '../product_digital_master/entites/product_digital_master.entity';
 import { ProductDigitalMasterService } from '../product_digital_master/product_digital_master.service';
 import { Supplier } from '../suppliers/entities/suppliers.entity';
@@ -16,12 +17,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   imports: [
     TypeOrmModule.forFeature([
       ProductCompany,
+      Supplier,
+      ProductDigitalCategory,
       ProductDigitalMaster,
       ProductDigitalBrand,
-      Supplier,
       Company,
     ]),
   ],
+
   controllers: [ProductCompaniesController],
   providers: [
     ProductCompaniesService,

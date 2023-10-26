@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable no-param-reassign */
 /* eslint-disable consistent-return */
 import { Injectable, NestMiddleware } from '@nestjs/common';
@@ -20,7 +21,17 @@ interface JwtPayload {
 @Injectable()
 export class KoperasiMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
-    const authHeader = req.headers.authorization;
+    const { branch_guid, authorization } = req.headers;
+    const authHeader = authorization;
+
+    if (!branch_guid) {
+      return res.status(401).json({
+        success: false,
+        status: 401,
+        isTokenUnavailable: true,
+        message: 'Branch guid tidak ditemukan',
+      });
+    }
 
     if (
       req.headers &&
@@ -56,6 +67,7 @@ export class KoperasiMiddleware implements NestMiddleware {
         req.headers.koperasi_guid = userInfo.koperasi_guid;
         req.headers.companyId = userInfo.companyId;
         req.headers.user_guid = userInfo.sub;
+        req.headers.branch_guid = branch_guid;
         req.headers.access_token = token;
         req.headers.user_roles = userInfo.resource_access.irsx_kasir.roles;
         req.headers.user_name = userInfo.name;

@@ -2,7 +2,8 @@ import { Company } from '../company/entities/company.entity';
 import { CompanyService } from '../company/company.service';
 import { HttpModule } from '@nestjs/axios';
 import { HttpRequestService } from '../http-request/http-request.service';
-import { Module } from '@nestjs/common';
+import { KoperasiMiddleware } from '@/middleware/jwt-strategy';
+import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import { ProductCompaniesService } from '../product_companies/product_companies.service';
 import { ProductCompany } from '../product_companies/entities/product_companies.entity';
 import { ProductDigitalBrand } from '../product_digital_brands/entities/product_digital_brand.entity';
@@ -43,4 +44,14 @@ import { UsersService } from '../users/users.service';
     CompanyService,
   ],
 })
-export class TransactionsModule {}
+export class TransactionsModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(KoperasiMiddleware)
+      .exclude({
+        path: 'transactions/callback',
+        method: RequestMethod.POST,
+      })
+      .forRoutes(TransactionsController);
+  }
+}

@@ -4,12 +4,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Company } from '@/modules/company/entities/company.entity';
+import { ProductCompany } from '@/modules/product_companies/entities/product_companies.entity';
 
-@Entity('suppliers')
+@Entity({ name: 'suppliers' })
 export class Supplier {
   @PrimaryGeneratedColumn('uuid')
   uuid: string;
@@ -44,4 +46,10 @@ export class Supplier {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
   updated_at?: Date;
+
+  @OneToMany(
+    () => ProductCompany,
+    (productCompany: ProductCompany) => productCompany.supplier
+  )
+  product_companies: ProductCompany[];
 }

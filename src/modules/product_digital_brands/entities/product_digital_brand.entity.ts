@@ -23,6 +23,8 @@ export class ProductDigitalBrand {
   @JoinColumn({ name: 'product_digital_category_id' })
   product_digital_category: ProductDigitalCategory;
 
+  product_digital_categories: ProductDigitalCategory;
+
   @Column({ length: 255, nullable: true })
   name: string;
 

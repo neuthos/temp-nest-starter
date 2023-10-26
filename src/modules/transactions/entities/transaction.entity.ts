@@ -93,22 +93,24 @@ export class Transaction {
   })
   status: number;
 
-  @Column('varchar')
+  @Column('varchar', { nullable: true })
   message: string;
 
-  @Column({ type: 'varchar', enum: ['CASH', 'ALLOWANCE', 'PAYMENT_METHOD'] })
+  @Column({
+    type: 'enum',
+    enum: ['CASH', 'ALLOWANCE', 'ONLINE_PAYMENT', 'EWALLET', 'QRIS'],
+    nullable: true,
+  })
   payment_method: string;
 
-  @Column('varchar')
+  @Column('varchar', { nullable: true })
   payment_code: string;
 
-  @Column('int')
+  @Column('int', { nullable: true })
   payment_fee: number;
 
-  @Column({ type: 'int', name: 'payment_charged_amount' })
-  getPaymentChargedAmount(): number {
-    return this.sell_price + this.payment_fee;
-  }
+  @Column({ type: 'int', name: 'payment_charged_amount', nullable: true })
+  payment_charged_amount: number;
 
   @Column('varchar')
   user_name: string;
@@ -123,7 +125,11 @@ export class Transaction {
   })
   affiliate_total_commision: number;
 
-  @Column({ name: 'callback_at', type: 'timestamp with time zone' })
+  @Column({
+    name: 'callback_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
   callback_at: Date;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })

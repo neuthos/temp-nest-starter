@@ -39,6 +39,8 @@ export class ProductCompany {
   @JoinColumn({ name: 'supplier_id' })
   supplier: Supplier;
 
+  suppliers: Supplier;
+
   @Column({ type: 'decimal', precision: 20, scale: 2 })
   margin: number;
 

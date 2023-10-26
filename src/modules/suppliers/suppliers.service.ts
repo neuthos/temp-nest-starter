@@ -29,6 +29,17 @@ export class SuppliersService {
     return this.supplierRepository.save(supplier);
   }
 
+  async detail(supplierId: string) {
+    const data = this.supplierRepository.findOne({
+      where: {
+        uuid: supplierId,
+      },
+    });
+    if (!data) throw NormalException.NOTFOUND('Supplier tidak ditemukan');
+
+    return data;
+  }
+
   async findAll(
     companyId: string,
     page: number = 1,

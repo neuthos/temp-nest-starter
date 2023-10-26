@@ -1,8 +1,10 @@
+/* eslint-disable import/no-cycle */
 import { Company } from './entities/company.entity';
 import { CompanyDataStream } from './types/company-stream.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable, Logger } from '@nestjs/common';
 import { NormalException } from '@/exception';
+import { ProductCompaniesService } from '../product_companies/product_companies.service';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -11,7 +13,9 @@ export class CompanyService {
 
   constructor(
     @InjectRepository(Company)
-    private companyrepository: Repository<Company>
+    private companyrepository: Repository<Company>,
+
+    private productCompanyService: ProductCompaniesService
   ) {}
 
   async createOrUpdateCompany(payload: CompanyDataStream) {
@@ -33,9 +37,11 @@ export class CompanyService {
       this.logger.log('🟢 DO INSERT data COMPANY from CDC 🟢');
       const newCompany = new Company();
       newCompany.name = payload.name;
+      newCompany.default_fee = 200;
       newCompany.code = payload.code;
       newCompany.uuid = payload.id;
       await this.companyrepository.save(newCompany);
+      this.productCompanyService.syncProduct(newCompany.uuid);
       this.logger.log('🟢 DONE INSERT data COMPANY from CDC');
     }
   }

@@ -1,8 +1,9 @@
+/* eslint-disable import/no-cycle */
 /* eslint-disable no-await-in-loop */
 import { CompanyService } from '../company/company.service';
 import { EntityManager, Repository } from 'typeorm';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Injectable } from '@nestjs/common';
 import { NormalException } from '@/exception';
 import { ProductCompany } from './entities/product_companies.entity';
 import { ProductDigitalBrand } from '../product_digital_brands/entities/product_digital_brand.entity';
@@ -17,8 +18,10 @@ export class ProductCompaniesService {
     @InjectRepository(ProductDigitalBrand)
     private readonly brandRepository: Repository<ProductDigitalBrand>,
 
-    private readonly productDigitalMasterService: ProductDigitalMasterService,
-    private readonly companyService: CompanyService
+    @Inject(forwardRef(() => CompanyService))
+    private readonly companyService: CompanyService,
+
+    private readonly productDigitalMasterService: ProductDigitalMasterService
   ) {}
 
   private async _validateCompanyId(
@@ -107,9 +110,35 @@ export class ProductCompaniesService {
   }
 
   async detail(productCompanyId: string): Promise<ProductCompany> {
-    const data = await this.productCompanyRepo.findOne({
-      where: { uuid: productCompanyId },
-    });
+    const query = this.productCompanyRepo
+      .createQueryBuilder('pc')
+      .leftJoinAndMapOne(
+        'pc.product_digital_master',
+        'product_digital_master',
+        'product_digital_master',
+        'pc.product_digital_master_id = product_digital_master.uuid'
+      )
+      .leftJoinAndMapOne(
+        'pc.suppliers',
+        'suppliers',
+        'supplier',
+        'pc.supplier_id = supplier.uuid'
+      )
+      .leftJoinAndMapOne(
+        'product_digital_master.product_digital_brand',
+        'product_digital_brand',
+        'product_digital_brand',
+        'product_digital_master.product_digital_brand_id = product_digital_brand.uuid'
+      )
+      .leftJoinAndMapOne(
+        'product_digital_brand.product_digital_categories',
+        'product_digital_categories',
+        'product_digital_category',
+        'product_digital_brand.product_digital_category_id = product_digital_category.uuid'
+      )
+      .where('pc.uuid = :productCompanyId', { productCompanyId });
+
+    const data = await query.getOne();
     if (!data) throw NormalException.NOTFOUND('Produk tidak ditemukan');
     return data;
   }
@@ -404,9 +433,9 @@ export class ProductCompaniesService {
     sellPriceWithMargin: number;
   }> {
     const { productCompany } = payload;
-    const { supplier } = productCompany;
+    const { suppliers }: any = productCompany;
 
-    const isQpaySupplier: boolean = supplier.uuid === process.env.QPAY_UUID;
+    const isQpaySupplier: boolean = suppliers.uuid === process.env.QPAY_UUID;
 
     if (!productCompany) {
       throw NormalException.NOTFOUND('Produk tidak ditemukan');

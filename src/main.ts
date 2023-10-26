@@ -32,6 +32,21 @@ const bootstrap = async () => {
     },
   });
 
+  app.connectMicroservice({
+    transport: Transport.RMQ,
+    options: {
+      urls: [process.env.RABBITMQ_URL],
+      queue: 'PRODUCT_DIGITAL_TRANSACTION',
+      queueOptions: {
+        durable: true,
+      },
+      deserializer: new RabbitDeserializer(),
+      clientProperties: {
+        connection_name: `PRODUCT DIGITAL SERVICE FOR TRANSACTION`,
+      },
+    },
+  });
+
   app.startAllMicroservices();
 
   initialize(app);

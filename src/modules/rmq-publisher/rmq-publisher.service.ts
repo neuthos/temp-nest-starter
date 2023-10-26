@@ -16,9 +16,18 @@ export class RabbitmqPublisherService {
 
   async publishMessage(message: any, queueName: string) {
     await this.channel.assertQueue(queueName, { durable: true });
-    this.channel.sendToQueue(queueName, Buffer.from(JSON.stringify(message)), {
-      persistent: true,
-    });
+    this.channel.sendToQueue(
+      queueName,
+      Buffer.from(
+        JSON.stringify({
+          pattern: queueName,
+          data: message,
+        })
+      ),
+      {
+        persistent: true,
+      }
+    );
   }
 
   async onModuleDestroy() {
