@@ -24,14 +24,14 @@ export class KoperasiMiddleware implements NestMiddleware {
     const { branch_guid, authorization } = req.headers;
     const authHeader = authorization;
 
-    if (!branch_guid) {
-      return res.status(401).json({
-        success: false,
-        status: 401,
-        isTokenUnavailable: true,
-        message: 'Branch guid tidak ditemukan',
-      });
-    }
+    // if (!branch_guid) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     status: 401,
+    //     isTokenUnavailable: true,
+    //     message: 'Branch guid tidak ditemukan',
+    //   });
+    // }
 
     if (
       req.headers &&
