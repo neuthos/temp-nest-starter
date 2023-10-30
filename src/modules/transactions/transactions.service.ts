@@ -222,9 +222,15 @@ export class TransactionsService {
   ) {
     switch (paymentMethod) {
       case 'ALLOWANCE':
+        if (!userOrElectricCardId) {
+          throw NormalException.NOTFOUND('User tidak ditemukan');
+        }
         await this.checkUserAllowance(userOrElectricCardId, accessToken);
         break;
       case 'EWALLET':
+        if (!userOrElectricCardId) {
+          throw NormalException.NOTFOUND('User tidak ditemukan');
+        }
         await this.checkUserEwallet(userOrElectricCardId, accessToken);
         break;
       default:
@@ -275,9 +281,7 @@ export class TransactionsService {
       path,
       {},
       {
-        headers: {
-          'content-type': 'application/json',
-        },
+        'content-type': 'application/json',
       }
     );
 
@@ -384,9 +388,7 @@ export class TransactionsService {
     this.logger.log(`🔵 With body ${JSON.stringify(body)} 🔵\n\n`);
 
     const response = await this.httpRequestService.post(path, body, {
-      headers: {
-        'content-type': 'application/json',
-      },
+      'content-type': 'application/json',
     });
 
     this.logger.log(`🔵 With response ${JSON.stringify(response)} 🔵\n\n`);
@@ -457,7 +459,7 @@ export class TransactionsService {
     });
 
     const response = await this.httpRequestService.post(url, body, {
-      headers: header,
+      ...header,
     });
 
     const data: ApiTrxResponse = response?.data;
@@ -535,7 +537,7 @@ export class TransactionsService {
     });
 
     const response = await this.httpRequestService.post(url, body, {
-      headers: header,
+      ...header,
     });
 
     const data = response?.data;
@@ -665,17 +667,14 @@ export class TransactionsService {
     });
 
     const response = await this.httpRequestService.post(path, body, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'content-type': 'application/json',
-      },
+      Authorization: `Bearer ${accessToken}`,
     });
 
     this.logger.log(`🔵 With response ${JSON.stringify(response)} 🔵\n\n`);
 
     if (!response.success) {
       await this.updateTransactionToFailed(trxId);
-      await this.addKoperasiBalance(trxId);
+      // await this.addKoperasiBalance(trxId);
       await this.insertLog({
         transactionId: trxId,
         statusLog: StatusLog.ERROR,
@@ -700,7 +699,7 @@ export class TransactionsService {
       },
     });
 
-    return response?.data;
+    return response?.data?.data;
   }
 
   async informOrderByCash(trxId: string) {
@@ -723,9 +722,7 @@ export class TransactionsService {
       path,
       {},
       {
-        headers: {
-          'content-type': 'application/json',
-        },
+        'content-type': 'application/json',
       }
     );
 
@@ -733,7 +730,7 @@ export class TransactionsService {
 
     if (!response.success) {
       await this.updateTransactionToFailed(trxId);
-      await this.addKoperasiBalance(trxId);
+      // await this.addKoperasiBalance(trxId);
       await this.insertLog({
         transactionId: trxId,
         statusLog: StatusLog.ERROR,
@@ -815,9 +812,7 @@ export class TransactionsService {
     });
 
     const response = await this.httpRequestService.post(path, body, {
-      headers: {
-        'content-type': 'application/json',
-      },
+      'content-type': 'application/json',
     });
 
     this.logger.log(`🔵 With response ${JSON.stringify(response)} 🔵\n\n`);
@@ -866,7 +861,6 @@ export class TransactionsService {
           payload.header.access_token
         );
         break;
-
       case 'EWALLET':
         res = await this.informOrderPaymentEwallet(
           payload.header,
@@ -874,6 +868,9 @@ export class TransactionsService {
           payload.data.electricCardId,
           payload.data.totalPay
         );
+        break;
+      case 'ALLOWANCE':
+        res = { reffId: payload.data.trxId };
         break;
       default:
         break;
@@ -920,13 +917,13 @@ export class TransactionsService {
 
   async create(payload: CreateTransactionDTO, header: HeaderParam) {
     return this.transactionRepo.manager.transaction(async (trx) => {
-      // await this.checkUserBalance(
-      //   payload.paymentMethod,
-      //   payload.paymentMethod === 'EWALLET'
-      //     ? payload.electricCardId
-      //     : header.user_guid,
-      //   header.access_token
-      // );
+      await this.checkUserBalance(
+        payload.paymentMethod,
+        payload.paymentMethod === 'EWALLET'
+          ? payload.electricCardId
+          : payload.buyer_id,
+        header.access_token
+      );
 
       const productDetail = await this.productCompanyService.detail(
         payload.product_company_id
