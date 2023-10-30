@@ -10,16 +10,23 @@ import { HeaderParam } from '@/shared/interfaces';
 import { HttpRequestService } from '../http-request/http-request.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  LabelLog,
+  StatusLog,
+  TransactionLog,
+} from './entities/transaction-log.entity';
 import { NormalException } from '@/exception';
 import { ProductCompaniesService } from '../product_companies/product_companies.service';
 import { ProductCompany } from '../product_companies/entities/product_companies.entity';
 import { RabbitmqPublisherService } from '../rmq-publisher/rmq-publisher.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { Transaction } from './entities/transaction.entity';
+import { UpdateBillingPayloadDto } from './dto/billing.dto';
 import { User } from '../users/entities/users.entity';
 import { UsersService } from '../users/users.service';
 import { hashSHA256NonSalt } from '@/utils/helper';
 import dayjs from 'dayjs';
+import paginate from '@/shared/pagination';
 
 @Injectable()
 export class TransactionsService {
@@ -28,6 +35,8 @@ export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
     private transactionRepo: Repository<Transaction>,
+    @InjectRepository(TransactionLog)
+    private transactionLogRepo: Repository<TransactionLog>,
 
     private productCompanyService: ProductCompaniesService,
     private rabbitMqPublisher: RabbitmqPublisherService,
@@ -35,6 +44,77 @@ export class TransactionsService {
     private supplierService: SuppliersService,
     private httpRequestService: HttpRequestService
   ) {}
+
+  async list(companyId: string, filterDto: any) {
+    const { product_id, start_date, end_date, reference_number, show_log } =
+      filterDto;
+    const page = +filterDto.page || 1;
+    const limit = +filterDto.limit || 10;
+
+    const query = this.transactionRepo
+      .createQueryBuilder('transaction')
+      .where(
+        'transaction.company_id = :companyId AND transaction.type = :type',
+        {
+          companyId,
+          type: 'TRX',
+        }
+      );
+
+    if (product_id) {
+      query.andWhere('transaction.product_master_id = :product_id', {
+        product_id,
+      });
+    }
+
+    if (start_date && end_date) {
+      query.andWhere('transaction.created_at BETWEEN :startDate AND :endDate', {
+        startDate: start_date,
+        endDate: end_date,
+      });
+    }
+
+    if (reference_number) {
+      query.andWhere('transaction.reference_number = :reference_number', {
+        reference_number,
+      });
+    }
+
+    if (show_log) {
+      query.leftJoinAndMapMany(
+        'transaction.logs',
+        TransactionLog,
+        'logs',
+        'logs.transaction_id = transaction.uuid'
+      );
+    }
+
+    return paginate(query, { page, limit });
+  }
+
+  async getTransactionStatistics(companyId: string) {
+    const query = `
+      SELECT
+      (SELECT COUNT(*) FROM transactions WHERE  company_id = '${companyId}' AND type = 'TRX') AS total_transactions,
+      (SELECT COUNT(*) FROM transactions WHERE status = 1 AND company_id = '${companyId}' AND type = 'TRX') AS total_successful_transactions,
+      (SELECT COUNT(*) FROM transactions WHERE status = 0 AND company_id = '${companyId}' AND type = 'TRX') AS total_pending_transactions,
+      (SELECT COUNT(*) FROM transactions WHERE status = 2 AND company_id = '${companyId}' AND type = 'TRX') AS total_failed_transactions,
+      (SELECT COALESCE(SUM(pc.margin), 0) FROM transactions t
+          JOIN product_companies pc ON t.product_companies_id = pc.uuid WHERE t.status = 1 AND t.company_id = '${companyId}' AND t.type = 'TRX') AS total_margin,
+      (SELECT COALESCE(SUM(t.sell_price), 0) FROM transactions t WHERE t.status = 1 AND t.company_id = '${companyId}' AND t.type = 'TRX') AS total_revenue;
+    `;
+
+    const results = await this.transactionRepo.query(query);
+    if (results[0]) return results[0];
+    return {
+      total_transactions: 0,
+      total_successful_transactions: 0,
+      total_pending_transactions: 0,
+      total_failed_transactions: 0,
+      total_margin: 0,
+      total_revenue: 0,
+    };
+  }
 
   createHeaderRequest(
     publicKey: string,
@@ -99,20 +179,57 @@ export class TransactionsService {
     );
   }
 
-  private async checkUserBalance(userId: string, accessToken: string) {
+  async checkUserAllowance(userId: string, accessToken: string) {
     const path = `${process.env.OLD_API_HOST_URL}/api/usage/find-member-by-guid?guid=${userId}`;
 
-    this.logger.log(`🔵 Check User Balance with UID ${userId} 🔵 \n\n`);
+    this.logger.log(`🔵 Check User Balance with url ${path} 🔵 \n\n`);
+
     const response = await this.httpRequestService.get(path, null, {
       Authorization: `Bearer ${accessToken}`,
     });
+
     this.logger.log(`🔵 RESPONSE ${JSON.stringify(response)} 🔵 \n\n`);
 
-    if (!response.data?.success) {
+    if (!response.success) {
       throw NormalException.NOTFOUND('User tidak ditemukan');
     }
 
     return response;
+  }
+
+  async checkUserEwallet(electricCardId: string, accessToken: string) {
+    const path = `${process.env.OLD_API_HOST_URL}/api/ewallet/wallet/kasir/info?electric_card=${electricCardId}`;
+
+    this.logger.log(`🔵 Check User EWALLET Balance with url ${path} 🔵 \n\n`);
+
+    const response = await this.httpRequestService.get(path, null, {
+      Authorization: `Bearer ${accessToken}`,
+    });
+
+    this.logger.log(`🔵 RESPONSE ${JSON.stringify(response)} 🔵 \n\n`);
+
+    if (!response.success) {
+      throw NormalException.NOTFOUND('Electric card tidak ditemukan');
+    }
+
+    return response;
+  }
+
+  private async checkUserBalance(
+    paymentMethod: string,
+    userOrElectricCardId: string,
+    accessToken: string
+  ) {
+    switch (paymentMethod) {
+      case 'ALLOWANCE':
+        await this.checkUserAllowance(userOrElectricCardId, accessToken);
+        break;
+      case 'EWALLET':
+        await this.checkUserEwallet(userOrElectricCardId, accessToken);
+        break;
+      default:
+        break;
+    }
   }
 
   private async deductKoperasiBalance(
@@ -131,30 +248,46 @@ export class TransactionsService {
     };
 
     this.logger.log(`🔵 Deduct koperasi balance with ID ${companyId} 🔵 \n\n`);
+
     const response = await this.httpRequestService.post(path, body, {
       Authorization: `Bearer ${accessToken}`,
     });
-    this.logger.log(`🔵 RESPONSE ${JSON.stringify(response)} 🔵 \n\n`);
 
-    return response;
-  }
-
-  private async deductUserBalance(paymentMethod: string) {
-    switch (paymentMethod) {
-      case 'ALLOWANCE':
-        this.logger.log(`🔵 Will do Deduct user ALLOWANCE  🔵\n\n`);
-        break;
-      case 'WALLET':
-        this.logger.log(`🔵 Will do Deduct user WALLET  🔵\n\n`);
-        break;
-      case 'PAYMENT_METHOD':
-        this.logger.log(`🔵 Will do Deduct user PAYMENT METHOD  🔵\n\n`);
-        break;
-      default:
-        break;
+    if (!response.success) {
+      return true;
+      throw NormalException.UNEXPECTED('Add koperasi balance error');
     }
 
-    return true;
+    this.logger.log(`🔵 RESPONSE ${JSON.stringify(response)} 🔵 \n\n`);
+
+    return response.data;
+  }
+
+  async addKoperasiBalance(trxId: string) {
+    const signature = hashSHA256NonSalt(`Galang Ganteng`);
+    const path = `${process.env.OLD_API_HOST_URL}/api/walletpayment/v1/internal/transaction/void?reference_number=${trxId}&signature=${signature}`;
+
+    this.logger.log(
+      `🔵 ADD KOPERASI BALANCE:  Will make a request to ${path} 🔵\n\n`
+    );
+
+    const response = await this.httpRequestService.patch(
+      path,
+      {},
+      {
+        headers: {
+          'content-type': 'application/json',
+        },
+      }
+    );
+
+    this.logger.log(`🔵 With response ${JSON.stringify(response)} 🔵\n\n`);
+
+    if (!response.success) {
+      throw NormalException.UNEXPECTED('Add koperasi balance error');
+    }
+
+    return response?.data;
   }
 
   private async insertInitialTransaction(
@@ -188,7 +321,7 @@ export class TransactionsService {
       supplier_host: productCompany.suppliers.host,
       destination: trxDetail.destination,
       payment_method: trxDetail.paymentMethod || null,
-      payment_code: null,
+      payment_code: trxDetail.paymentMethod,
       payment_fee: 0,
       user_name: user.name,
       user_email: user.email,
@@ -236,6 +369,18 @@ export class TransactionsService {
       fixerPrice: 0,
       signature: trxHash,
     };
+
+    await this.insertLog({
+      transactionId: newTransaction.uuid,
+      statusLog: StatusLog.REQUEST,
+      labelLog: LabelLog.REQUEST_CREATE_BILLING,
+      title: `Melakukan permintaan untuk membuat billing`,
+      log: {
+        url: path,
+        body,
+      },
+    });
+
     this.logger.log(`🔵 With body ${JSON.stringify(body)} 🔵\n\n`);
 
     const response = await this.httpRequestService.post(path, body, {
@@ -246,7 +391,30 @@ export class TransactionsService {
 
     this.logger.log(`🔵 With response ${JSON.stringify(response)} 🔵\n\n`);
 
-    return response;
+    if (!response.success) {
+      await this.insertLog({
+        transactionId: newTransaction.uuid,
+        statusLog: StatusLog.ERROR,
+        labelLog: LabelLog.RESPONSE_CREATE_BILLING,
+        title: `Mendapatkan respon membuat billing`,
+        log: {
+          ...response,
+        },
+      });
+
+      throw NormalException.UNEXPECTED('Billing error');
+    }
+
+    await this.insertLog({
+      transactionId: newTransaction.uuid,
+      statusLog: StatusLog.SUCCESS,
+      labelLog: LabelLog.RESPONSE_CREATE_BILLING,
+      title: `Mendapatkan respon membuat billing`,
+      log: {
+        ...response,
+      },
+    });
+    return response?.data?.data;
   }
 
   async httpRequestSupplierProduct(transaction: Transaction) {
@@ -276,6 +444,18 @@ export class TransactionsService {
     );
     this.logger.log(`\n🔵 With HEADER ${JSON.stringify(header)} 🔵\n`);
 
+    await this.insertLog({
+      transactionId: transaction.uuid,
+      statusLog: StatusLog.REQUEST,
+      labelLog: LabelLog.REQUEST_SUPPLIER,
+      title: `Melakukan request ke supplier`,
+      log: {
+        url,
+        body,
+        header,
+      },
+    });
+
     const response = await this.httpRequestService.post(url, body, {
       headers: header,
     });
@@ -283,9 +463,28 @@ export class TransactionsService {
     const data: ApiTrxResponse = response?.data;
 
     if (!this.isApiResTrxValid(data)) {
+      await this.insertLog({
+        transactionId: transaction.uuid,
+        statusLog: StatusLog.ERROR,
+        labelLog: LabelLog.RESPONSE_SUPPLIER,
+        title: `Mendapatkan response dari supplier`,
+        log: {
+          message: 'Invalid Format',
+        },
+      });
       this.logger.error('Invalid API response format');
       throw new Error('Invalid API response format');
     }
+
+    await this.insertLog({
+      transactionId: transaction.uuid,
+      statusLog: StatusLog.SUCCESS,
+      labelLog: LabelLog.RESPONSE_SUPPLIER,
+      title: `Mendapatkan response dari supplier`,
+      log: {
+        ...data,
+      },
+    });
 
     if (data) {
       const isTrxSuccess = data.response_code === '01';
@@ -323,6 +522,18 @@ export class TransactionsService {
 
     this.logger.log(`\n🔵 With HEADER ${JSON.stringify(header)} 🔵\n`);
 
+    await this.insertLog({
+      transactionId: transaction.uuid,
+      statusLog: StatusLog.REQUEST,
+      labelLog: LabelLog.REQUEST_INQUIRY_SUPPLIER,
+      title: `Melakukan request inquiry ke supplier`,
+      log: {
+        url,
+        body,
+        header,
+      },
+    });
+
     const response = await this.httpRequestService.post(url, body, {
       headers: header,
     });
@@ -330,10 +541,28 @@ export class TransactionsService {
     const data = response?.data;
 
     if (!this.isApiResInquiryValid(data)) {
+      await this.insertLog({
+        transactionId: transaction.uuid,
+        statusLog: StatusLog.ERROR,
+        labelLog: LabelLog.RESPONSE_INQUIRY_SUPPLIER,
+        title: `Mendaptakan response inquiry dari supplier`,
+        log: {
+          message: 'invalid api format',
+        },
+      });
       this.logger.error('Invalid API response format');
       throw new Error('Invalid API response format');
     }
 
+    await this.insertLog({
+      transactionId: transaction.uuid,
+      statusLog: StatusLog.SUCCESS,
+      labelLog: LabelLog.RESPONSE_INQUIRY_SUPPLIER,
+      title: `Mendaptakan response inquiry dari supplier`,
+      log: {
+        ...data,
+      },
+    });
     this.logger.log(`🔵 END With response ${JSON.stringify(response)} 🔵\n\n`);
     return data;
   }
@@ -341,13 +570,28 @@ export class TransactionsService {
   async processTransactionResponse(data: ApiTrxResponse) {
     const transaction = await this.detail(data.transaction_id);
 
+    await this.insertLog({
+      transactionId: transaction.uuid,
+      statusLog: StatusLog.SUCCESS,
+      labelLog: LabelLog.CALLBACK_SUPPLIER,
+      title: `Mendaptakan callback dari supplier`,
+      log: {
+        ...data,
+      },
+    });
+
+    if (!transaction) {
+      throw NormalException.NOTFOUND('Transaksi tidak ditemukan');
+    }
+
     switch (data.response_code) {
       case '00':
+        transaction.status = 0;
         break;
       case '01':
         if (transaction.status !== 1) {
           transaction.status = 1;
-          transaction.message = JSON.stringify(JSON.stringify(data));
+          transaction.message = data.message;
           transaction.callback_at = new Date();
         }
         // SUKSES
@@ -355,7 +599,7 @@ export class TransactionsService {
       case '02':
         if (transaction.status !== 2) {
           transaction.status = 2;
-          transaction.message = JSON.stringify(JSON.stringify(data));
+          transaction.message = data.message;
           transaction.callback_at = new Date();
         }
         break;
@@ -379,18 +623,310 @@ export class TransactionsService {
       .getOne();
   }
 
+  async getStatusTrx(transactionId: string) {
+    const data = await this.transactionRepo.findOne({
+      where: { uuid: transactionId },
+      select: ['uuid', 'reference_number', 'status'],
+    });
+
+    if (!data) {
+      throw NormalException.NOTFOUND('Transaksi tidak ditemukan');
+    }
+
+    return data;
+  }
+
+  async informOrderByQris(
+    trxId: string,
+    totalPay: number,
+    accessToken: string
+  ) {
+    const path = `${process.env.OLD_API_HOST_URL}/api/walletpayment/v1/payment`;
+
+    this.logger.log(`🔵 Will make a request to ${path} 🔵\n\n`);
+
+    const body = {
+      referenceNumber: trxId,
+      channelCode: 'QRIS',
+      amount: totalPay,
+    };
+
+    this.logger.log(`🔵 With body ${JSON.stringify(body)} 🔵\n\n`);
+
+    await this.insertLog({
+      transactionId: trxId,
+      statusLog: StatusLog.REQUEST,
+      labelLog: LabelLog.REQUEST_INFORM_PAYMENT_BILLING,
+      title: `Melakukan request informasi pembayaran QRIS`,
+      log: {
+        path,
+        body: {},
+      },
+    });
+
+    const response = await this.httpRequestService.post(path, body, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+    });
+
+    this.logger.log(`🔵 With response ${JSON.stringify(response)} 🔵\n\n`);
+
+    if (!response.success) {
+      await this.updateTransactionToFailed(trxId);
+      await this.addKoperasiBalance(trxId);
+      await this.insertLog({
+        transactionId: trxId,
+        statusLog: StatusLog.ERROR,
+        labelLog: LabelLog.RESPONSE_INFORM_PAYMENT_BILLING,
+        title: `Mendapatkan respon informasi pembayaran QRIS`,
+        log: {
+          path,
+          body: {},
+        },
+      });
+      throw NormalException.UNEXPECTED('Billing error');
+    }
+
+    await this.insertLog({
+      transactionId: trxId,
+      statusLog: StatusLog.SUCCESS,
+      labelLog: LabelLog.RESPONSE_INFORM_PAYMENT_BILLING,
+      title: `Mendapatkan respon informasi pembayaran QRIS`,
+      log: {
+        path,
+        body: {},
+      },
+    });
+
+    return response?.data;
+  }
+
+  async informOrderByCash(trxId: string) {
+    const path = `${process.env.OLD_API_HOST_URL}/internal/api/billing/payment/cash?referenceNumber=${trxId}`;
+
+    this.logger.log(`🔵 Will make a request to INFORM CASH ${path} 🔵\n\n`);
+
+    await this.insertLog({
+      transactionId: trxId,
+      statusLog: StatusLog.REQUEST,
+      labelLog: LabelLog.REQUEST_INFORM_PAYMENT_BILLING,
+      title: `Melakukan request informasi pembayaran cash`,
+      log: {
+        path,
+        body: {},
+      },
+    });
+
+    const response = await this.httpRequestService.patch(
+      path,
+      {},
+      {
+        headers: {
+          'content-type': 'application/json',
+        },
+      }
+    );
+
+    this.logger.log(`🔵 With response ${JSON.stringify(response)} 🔵\n\n`);
+
+    if (!response.success) {
+      await this.updateTransactionToFailed(trxId);
+      await this.addKoperasiBalance(trxId);
+      await this.insertLog({
+        transactionId: trxId,
+        statusLog: StatusLog.ERROR,
+        labelLog: LabelLog.RESPONSE_INFORM_PAYMENT_BILLING,
+        title: `Mendapatkan respon informasi pembayaran Cash`,
+        log: {
+          ...response,
+        },
+      });
+      throw NormalException.UNEXPECTED('Inform payment error');
+    }
+
+    await this.insertLog({
+      transactionId: trxId,
+      statusLog: StatusLog.SUCCESS,
+      labelLog: LabelLog.RESPONSE_INFORM_PAYMENT_BILLING,
+      title: `Mendapatkan respon informasi pembayaran Cash`,
+      log: {
+        ...response,
+      },
+    });
+    return response?.data;
+  }
+
+  async updateTransactionToFailed(trxId: string) {
+    return this.transactionRepo.update(trxId, {
+      status: 2,
+    });
+  }
+
+  async updateTransctionToSuccess(trxId: string) {
+    return this.transactionRepo.update(trxId, {
+      status: 1,
+    });
+  }
+
+  async updateTransctionToPending(trxId: string) {
+    return this.transactionRepo.update(trxId, {
+      status: 1,
+    });
+  }
+
+  async informOrderPaymentEwallet(
+    header: HeaderParam,
+    trxId: string,
+    electricCardId: string,
+    totalPay: number
+  ) {
+    const path = `${process.env.OLD_API_HOST_URL}/api/walletpayment/v1/internal/transaction/payment-to-merchant`;
+
+    this.logger.log(
+      `🔵 INFORM ORDER PAYMENT WALLET Will make a request to ${path} 🔵\n\n`
+    );
+
+    const trxHash = hashSHA256NonSalt(
+      `${process.env.EWALLET_TRX_KEY}${trxId}${totalPay}${electricCardId}`
+    );
+
+    const body = {
+      userId: '',
+      companyId: header.companyId,
+      referenceNumber: trxId,
+      electricCard: electricCardId,
+      amount: totalPay,
+      signature: trxHash,
+    };
+
+    this.logger.log(`🔵 With body ${JSON.stringify(body)} 🔵\n\n`);
+
+    await this.insertLog({
+      transactionId: trxId,
+      statusLog: StatusLog.REQUEST,
+      labelLog: LabelLog.REQUEST_INFORM_PAYMENT_BILLING,
+      title: `Melakukan request informasi pembayaran EWALLET`,
+      log: {
+        path,
+        body,
+      },
+    });
+
+    const response = await this.httpRequestService.post(path, body, {
+      headers: {
+        'content-type': 'application/json',
+      },
+    });
+
+    this.logger.log(`🔵 With response ${JSON.stringify(response)} 🔵\n\n`);
+
+    if (!response.success) {
+      await this.insertLog({
+        transactionId: trxId,
+        statusLog: StatusLog.ERROR,
+        labelLog: LabelLog.RESPONSE_INFORM_PAYMENT_BILLING,
+        title: `Mendapatakan response informasi pembayaran EWALLET`,
+        log: {
+          ...response,
+        },
+      });
+
+      throw NormalException.UNEXPECTED('Billing error');
+    }
+
+    await this.insertLog({
+      transactionId: trxId,
+      statusLog: StatusLog.SUCCESS,
+      labelLog: LabelLog.RESPONSE_INFORM_PAYMENT_BILLING,
+      title: `Mendapatakan response informasi pembayaran EWALLET`,
+      log: {
+        ...response,
+      },
+    });
+
+    return response?.data;
+  }
+
+  async paymentMethodHandler(payload: {
+    paymentMethod: string;
+    header: HeaderParam;
+    data: { trxId: string; totalPay: number; electricCardId?: string };
+  }) {
+    let res = null;
+    switch (payload.paymentMethod) {
+      case 'CASH':
+        res = await this.informOrderByCash(payload.data.trxId);
+        break;
+      case 'QRIS':
+        res = await this.informOrderByQris(
+          payload.data.trxId,
+          payload.data.totalPay,
+          payload.header.access_token
+        );
+        break;
+
+      case 'EWALLET':
+        res = await this.informOrderPaymentEwallet(
+          payload.header,
+          payload.data.trxId,
+          payload.data.electricCardId,
+          payload.data.totalPay
+        );
+        break;
+      default:
+        break;
+    }
+
+    return res;
+  }
+
+  async transactionHandlerAfterPay(billingData: UpdateBillingPayloadDto) {
+    this.logger.log(
+      `🔵 INCOMING BILLING ${JSON.stringify(billingData)} 🔵\n\n`
+    );
+
+    const transaction = await this.detail(billingData.referenceNumber);
+
+    await this.insertLog({
+      transactionId: transaction.uuid,
+      statusLog: StatusLog.SUCCESS,
+      labelLog: LabelLog.RESPONSE_INFORM_PAYMENT_BILLING,
+      title: `Mendapatkan respons untuk membuat billing`,
+      log: {
+        ...billingData,
+      },
+    });
+
+    if (!transaction) {
+      this.logger.log(`🔵 Transaksi tidak ditemukan 🔵\n\n`);
+      throw NormalException.NOTFOUND('Transaksi tidak ditemukan');
+    }
+
+    const isBillingSuccess = billingData.status === 1;
+
+    if (isBillingSuccess) {
+      this.logger.log('✅ Do: Payment Success \n');
+      await this.rabbitMqPublisher.publishMessage(
+        transaction,
+        'PRODUCT_DIGITAL_TRANSACTION'
+      );
+    } else {
+      this.logger.log('🚫 Do: Payment Failed \n');
+      await this.updateTransactionToFailed(transaction.uuid);
+    }
+  }
+
   async create(payload: CreateTransactionDTO, header: HeaderParam) {
     return this.transactionRepo.manager.transaction(async (trx) => {
-      const checkUserWallet =
-        payload.paymentMethod === 'ALLOWANCE' ||
-        payload.paymentMethod === 'EWALLET';
-
-      if (checkUserWallet) {
-        await this.checkUserBalance(header.user_guid, header.access_token);
-      }
-
-      // this.logger.log(`🔵 Check Koperasi Balance with UID ${companyId} 🔵`);
-      // await this.checkKoperasiBalance(companyId, z);
+      // await this.checkUserBalance(
+      //   payload.paymentMethod,
+      //   payload.paymentMethod === 'EWALLET'
+      //     ? payload.electricCardId
+      //     : header.user_guid,
+      //   header.access_token
+      // );
 
       const productDetail = await this.productCompanyService.detail(
         payload.product_company_id
@@ -405,41 +941,46 @@ export class TransactionsService {
         payload
       );
 
-      await this.httpRequestCreateBilling(newTransaction, header);
+      const resBilling = await this.httpRequestCreateBilling(
+        newTransaction,
+        header
+      );
 
-      // const responseDeductKoperasi = await this.deductKoperasiBalance(
+      newTransaction.reference_number = resBilling.invoiceNo;
+
+      // await this.deductKoperasiBalance(
       //   header.access_token,
       //   newTransaction.uuid,
-      //   productDetail.buy_price,
-      //   productDetail.company_id
+      //   newTransaction.buy_price,
+      //   newTransaction.company_id
       // );
 
-      // if (!responseDeductKoperasi) {
-      //   throw NormalException.VALIDATION_ERROR(
-      //     'Transaksi gagal, Silahkan hubungi admin'
-      //   );
-      // }
+      const resInform = await this.paymentMethodHandler({
+        paymentMethod: payload.paymentMethod,
+        header,
+        data: {
+          trxId: newTransaction.uuid,
+          totalPay: newTransaction.sell_price,
+          electricCardId: payload.electricCardId,
+        },
+      });
 
-      if (checkUserWallet) {
-        const responseDeductUser = await this.deductUserBalance(
-          payload.paymentMethod
-        );
+      await this.transactionRepo.save(newTransaction);
 
-        if (!responseDeductUser) {
-          throw NormalException.VALIDATION_ERROR(
-            'Transaksi gagal, Silahkan hubungi admin'
-          );
-        }
-      }
-
-      await this.rabbitMqPublisher.publishMessage(
-        newTransaction,
-        'PRODUCT_DIGITAL_TRANSACTION'
-      );
+      const transactionResponse = {
+        uuid: newTransaction.uuid,
+        sell_price: newTransaction.sell_price,
+        reference_number: newTransaction.reference_number,
+        status: newTransaction.status,
+        payment_method: newTransaction.payment_method,
+      };
 
       return {
         message: 'Transaksimu sedang di proses',
-        data: newTransaction,
+        data: {
+          transaction: transactionResponse,
+          billing: resInform,
+        },
       };
     });
   }
@@ -449,8 +990,11 @@ export class TransactionsService {
       const productDetail = await this.productCompanyService.detail(
         payload.product_company_id
       );
-
-      if (productDetail.product_digital_master.is_bill_payment !== 1) {
+      if (
+        productDetail.product_digital_master.is_bill_payment !== 1 &&
+        productDetail.product_digital_master.product_digital_brand
+          .product_digital_categories.layout_type !== 'CARD_DENOM_INQUIRY'
+      ) {
         throw NormalException.NOTFOUND('Produk bukan prabayar');
       }
 
@@ -466,6 +1010,8 @@ export class TransactionsService {
       const inquiryData = await this.httpRequestInquiryProduct(newTransaction);
 
       newTransaction.message = inquiryData;
+      newTransaction.type = 'INQUIRY';
+
       await this.transactionRepo.save(newTransaction);
 
       return {
@@ -479,13 +1025,13 @@ export class TransactionsService {
   }
 
   async paymentInquiry(payload: InquiryPayment, header: HeaderParam) {
-    const checkUserWallet =
-      payload.paymentMethod === 'ALLOWANCE' ||
-      payload.paymentMethod === 'EWALLET';
-
-    if (checkUserWallet) {
-      await this.checkUserBalance(header.user_guid, header.access_token);
-    }
+    await this.checkUserBalance(
+      payload.paymentMethod,
+      payload.paymentMethod === 'EWALLET'
+        ? payload.electricCardId
+        : header.user_guid,
+      header.access_token
+    );
 
     const transaction = await this.detail(payload.reff_id);
 
@@ -494,29 +1040,62 @@ export class TransactionsService {
     }
 
     transaction.payment_method = payload.paymentMethod;
+    const resBilling = await this.httpRequestCreateBilling(transaction, header);
+    transaction.type = 'TRX';
+    transaction.reference_number = resBilling.invoiceNo;
 
-    await this.httpRequestCreateBilling(transaction, header);
-
-    if (checkUserWallet) {
-      const responseDeductUser = await this.deductUserBalance(
-        payload.paymentMethod
-      );
-
-      if (!responseDeductUser) {
-        throw NormalException.VALIDATION_ERROR(
-          'Transaksi gagal, Silahkan hubungi admin'
-        );
-      }
-    }
-
-    await this.rabbitMqPublisher.publishMessage(
-      transaction,
-      'PRODUCT_DIGITAL_TRANSACTION'
+    await this.deductKoperasiBalance(
+      header.access_token,
+      transaction.uuid,
+      transaction.buy_price,
+      transaction.company_id
     );
+
+    const resInform = await this.paymentMethodHandler({
+      paymentMethod: payload.paymentMethod,
+      header,
+      data: {
+        trxId: transaction.uuid,
+        totalPay: transaction.sell_price,
+        electricCardId: payload.electricCardId,
+      },
+    });
+
+    await this.transactionRepo.save(transaction);
+
+    const transactionResponse = {
+      uuid: transaction.uuid,
+      sell_price: transaction.sell_price,
+      reference_number: transaction.reference_number,
+      status: transaction.status,
+      payment_method: transaction.payment_method,
+    };
 
     return {
       message: 'Transaksimu sedang di proses',
-      data: transaction,
+      data: {
+        transaction: transactionResponse,
+        billing: resInform,
+      },
     };
+  }
+
+  async insertLog(payload: {
+    transactionId: string;
+    statusLog: StatusLog;
+    labelLog: LabelLog;
+    title: string;
+    log: any;
+  }) {
+    const newTrxLog = this.transactionLogRepo.create({
+      transaction_id: payload.transactionId,
+      status_log: payload.statusLog,
+      label_log: payload.labelLog,
+      title: payload.title,
+      log: payload.log,
+    });
+
+    await this.transactionLogRepo.save(newTrxLog);
+    return newTrxLog;
   }
 }

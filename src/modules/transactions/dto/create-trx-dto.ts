@@ -25,6 +25,10 @@ export class CreateTransactionDTO {
   @ApiProperty()
   @IsOptional()
   voucher_id?: string | undefined;
+
+  @ApiProperty()
+  @IsOptional()
+  electricCardId?: string | undefined;
 }
 
 export class InquiryTrx {
@@ -53,4 +57,8 @@ export class InquiryPayment {
   @ApiProperty()
   @IsOptional()
   voucher_id?: string | undefined;
+
+  @ApiProperty()
+  @IsOptional()
+  electricCardId?: string | undefined;
 }

@@ -2,9 +2,10 @@
 // http-request.service.ts
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
-import { NormalException } from '@/exception';
 
 export class HttpResponseDto<T> {
+  success: boolean;
+
   data: any;
 
   status: number;
@@ -23,17 +24,32 @@ export class HttpRequestService {
     params?: any,
     headers?: any
   ): Promise<HttpResponseDto<T>> {
-    const request = await this.httpService.axiosRef.get(url, {
-      params,
-      headers,
-    });
-    const response = request.data;
+    try {
+      const request = await this.httpService.axiosRef.get(url, {
+        params,
+        headers,
+      });
 
-    return {
-      data: response as T,
-      status: response.status,
-      request: { url, params },
-    };
+      const response = request.data;
+
+      return {
+        success: true,
+        data: response as T,
+        status: response.status,
+        request: { url, params },
+      };
+    } catch (error) {
+      const response = error?.response?.data || null;
+      if (!response) this.logger.error(error);
+      else this.logger.error(response);
+
+      return {
+        success: false,
+        data: response,
+        status: response?.status || 500,
+        request: { url },
+      };
+    }
   }
 
   async post<T>(
@@ -45,21 +61,60 @@ export class HttpRequestService {
       const request = await this.httpService.axiosRef.post(url, data, {
         headers,
       });
+
       const response = request.data;
 
       return {
+        success: true,
         data: response as T,
         status: response.status,
         request: { url, data },
       };
     } catch (error) {
       const response = error?.response?.data || null;
-      if (!response) {
-        this.logger.error(error);
-        throw NormalException.UNEXPECTED('Internal Server Error');
-      }
-      this.logger.error(response);
-      throw NormalException.UNEXPECTED(response?.msg);
+
+      if (!response) this.logger.error(error);
+      else this.logger.error(response);
+
+      return {
+        success: false,
+        data: response,
+        status: response?.status || 500,
+        request: { url, data },
+      };
+    }
+  }
+
+  async patch<T>(
+    url: string,
+    data: any,
+    headers: any
+  ): Promise<HttpResponseDto<T>> {
+    try {
+      const request = await this.httpService.axiosRef.patch(url, data, {
+        headers,
+      });
+
+      const response = request.data;
+
+      return {
+        success: true,
+        data: response as T,
+        status: response.status,
+        request: { url, data },
+      };
+    } catch (error) {
+      const response = error?.response?.data || null;
+
+      if (!response) this.logger.error(error);
+      else this.logger.error(response);
+
+      return {
+        success: false,
+        data: response,
+        status: response?.status || 500,
+        request: { url, data },
+      };
     }
   }
 

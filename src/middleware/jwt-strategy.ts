@@ -60,7 +60,7 @@ export class KoperasiMiddleware implements NestMiddleware {
             success: false,
             status: 401,
             hasntBranch: true,
-            message: 'Akun anda tidak memiliki akses di service ini',
+            msg: 'Akun anda tidak memiliki akses di service ini',
           });
         }
 
@@ -78,7 +78,7 @@ export class KoperasiMiddleware implements NestMiddleware {
           success: false,
           status: 401,
           isTokenUnavailable: true,
-          message: 'Invalid Credential',
+          msg: 'Invalid Credential',
         });
       }
     } else {
@@ -86,7 +86,7 @@ export class KoperasiMiddleware implements NestMiddleware {
         success: false,
         status: 401,
         isTokenUnavailable: true,
-        message: 'Access Token Required',
+        msg: 'Access Token Required',
       });
     }
     next();

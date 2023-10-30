@@ -1,9 +1,11 @@
+/* eslint-disable import/no-cycle */
 import {
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -11,6 +13,7 @@ import { Company } from '@/modules/company/entities/company.entity';
 import { ProductCompany } from '@/modules/product_companies/entities/product_companies.entity';
 import { ProductDigitalMaster } from '@/modules/product_digital_master/entites/product_digital_master.entity';
 import { Supplier } from '@/modules/suppliers/entities/suppliers.entity';
+import { TransactionLog } from './transaction-log.entity';
 import { User } from '@/modules/users/entities/users.entity';
 
 @Entity('transactions')
@@ -132,9 +135,22 @@ export class Transaction {
   })
   callback_at: Date;
 
+  @Column({
+    type: 'enum',
+    enum: ['TRX', 'INQUIRY'],
+    default: 'TRX',
+  })
+  type: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   created_at?: Date;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
   updated_at?: Date;
+
+  @OneToMany(
+    () => TransactionLog,
+    (transactionLog) => transactionLog.transaction
+  )
+  logs: TransactionLog[];
 }

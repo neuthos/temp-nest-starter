@@ -23,13 +23,13 @@ export class MobileController {
   ) {
     return this.mobileService.getProductByBrand(
       brandId,
-      companyId ?? '742072a3-8f1c-442c-9486-99da8c013002',
+      companyId ?? '2f7b5e2b-6532-4418-97ac-32046de81d1d',
       prefix
     );
   }
 
   @Get('payment-method')
-  async getPaymentMethod() {
-    return this.mobileService.getPaymentMethod();
+  async getPaymentMethod(@Query('source') source?: string) {
+    return this.mobileService.getPaymentMethod(source);
   }
 }

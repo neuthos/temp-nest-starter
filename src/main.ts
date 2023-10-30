@@ -26,8 +26,10 @@ const bootstrap = async () => {
         durable: true,
       },
       deserializer: new RabbitDeserializer(),
-      clientProperties: {
-        connection_name: `PRODUCT DIGITAL SERVICE FOR STREAM USER`,
+      socketOptions: {
+        clientProperties: {
+          connection_name: `PRODUCT DIGITAL SERVICE FOR STREAM USER`,
+        },
       },
     },
   });
@@ -41,8 +43,27 @@ const bootstrap = async () => {
         durable: true,
       },
       deserializer: new RabbitDeserializer(),
-      clientProperties: {
-        connection_name: `PRODUCT DIGITAL SERVICE FOR TRANSACTION`,
+      socketOptions: {
+        clientProperties: {
+          connection_name: `PRODUCT DIGITAL SERVICE FOR TRANSACTION`,
+        },
+      },
+    },
+  });
+
+  app.connectMicroservice({
+    transport: Transport.RMQ,
+    options: {
+      urls: [process.env.RABBITMQ_URL],
+      queue: 'PRODUCT_DIGITAL_BILLING_QUEUE',
+      queueOptions: {
+        durable: true,
+      },
+      deserializer: new RabbitDeserializer(),
+      socketOptions: {
+        clientProperties: {
+          connection_name: `PRODUCT DIGITAL SERVICE FOR TRANSACTION`,
+        },
       },
     },
   });

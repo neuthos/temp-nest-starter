@@ -31,8 +31,8 @@ export class MobileService {
     return this.productCompaniesService.mobileList(brandIds, companyId, prefix);
   }
 
-  getPaymentMethod() {
-    return [
+  getPaymentMethod(source: string) {
+    const paymentMethod = [
       {
         label: 'Cash',
         value: 'CASH',
@@ -48,16 +48,22 @@ export class MobileService {
         value: 'QRIS',
         icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
       },
-      {
-        label: 'E-Wallet',
-        value: 'EWALLET',
-        icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
-      },
-      {
-        label: 'Metode Pembayaran Lainnya',
-        value: 'PAYMENT_METHOD',
-        icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
-      },
+      // {
+      //   label: 'E-Wallet',
+      //   value: 'EWALLET',
+      //   icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
+      // },
+      // {
+      //   label: 'Metode Pembayaran Lainnya',
+      //   value: 'PAYMENT_METHOD',
+      //   icon: 'https://hay-images.sgp1.digitaloceanspaces.com/cfee39d20a9a3da39eaea656e00ebb6a-original',
+      // },
     ];
+
+    if (source !== 'KASIR') {
+      paymentMethod.shift();
+    }
+
+    return paymentMethod;
   }
 }

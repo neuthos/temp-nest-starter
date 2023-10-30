@@ -13,6 +13,7 @@ import { RabbitmqPublisherService } from '../rmq-publisher/rmq-publisher.service
 import { Supplier } from '../suppliers/entities/suppliers.entity';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { Transaction } from './entities/transaction.entity';
+import { TransactionLog } from './entities/transaction-log.entity';
 import { TransactionsController } from './transactions.controller';
 import { TransactionsService } from './transactions.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -24,6 +25,7 @@ import { UsersService } from '../users/users.service';
     HttpModule,
     TypeOrmModule.forFeature([
       Transaction,
+      TransactionLog,
       Supplier,
       ProductCompany,
       ProductDigitalBrand,
