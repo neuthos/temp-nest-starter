@@ -76,7 +76,6 @@ export class TransactionsController {
     @Headers() header: HeaderParam,
     @Body() payload: InquiryPayment
   ) {
-    console.log(123);
     return this.transactionsService.paymentInquiry(payload, header);
   }
 }

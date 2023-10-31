@@ -40,7 +40,7 @@ export class HttpRequestService {
       };
     } catch (error) {
       const response = error?.response?.data || null;
-      if (!response) this.logger.error(error);
+      if (!response) this.logger.error(error?.response, 1);
       else this.logger.error(response);
 
       return {

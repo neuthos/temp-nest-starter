@@ -28,7 +28,7 @@ async function paginate<T>(
     .getManyAndCount();
 
   const totalPages = Math.ceil(total / options.limit);
-
+  console.log({ items });
   return {
     message: 'Berhasil',
     data: {

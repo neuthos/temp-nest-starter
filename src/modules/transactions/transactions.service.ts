@@ -1,3 +1,5 @@
+/* eslint-disable no-prototype-builtins */
+/* eslint-disable no-restricted-syntax */
 /* eslint-disable @typescript-eslint/naming-convention */
 import { ApiHeaderFormat, ApiTrxResponse } from './dto/third-transaction.dto';
 import {
@@ -46,6 +48,7 @@ export class TransactionsService {
   ) {}
 
   async list(companyId: string, filterDto: any) {
+    console.log({ companyId }, '742072a3-8f1c-442c-9486-99da8c013002');
     const { product_id, start_date, end_date, reference_number, show_log } =
       filterDto;
     const page = +filterDto.page || 1;
@@ -89,6 +92,7 @@ export class TransactionsService {
       );
     }
 
+    query.orderBy('created_at', 'DESC');
     return paginate(query, { page, limit });
   }
 
@@ -154,6 +158,7 @@ export class TransactionsService {
   isApiResInquiryValid(response: any) {
     if (!response) return false;
     const { success, response_code, message, transaction_id, data } = response;
+
     return (
       typeof response === 'object' &&
       typeof success === 'boolean' &&
@@ -164,9 +169,7 @@ export class TransactionsService {
       typeof data.destination === 'string' &&
       typeof data.sku === 'string' &&
       typeof data.serial_number === 'string' &&
-      typeof data.total_price === 'number' &&
-      typeof data.base_price === 'number' &&
-      typeof data.admin_fee === 'number'
+      typeof data.total_price === 'number'
     );
   }
 
@@ -189,9 +192,8 @@ export class TransactionsService {
     });
 
     this.logger.log(`🔵 RESPONSE ${JSON.stringify(response)} 🔵 \n\n`);
-
     if (!response.success) {
-      throw NormalException.NOTFOUND('User tidak ditemukan');
+      throw NormalException.NOTFOUND('Error check user balance');
     }
 
     return response;
@@ -223,13 +225,13 @@ export class TransactionsService {
     switch (paymentMethod) {
       case 'ALLOWANCE':
         if (!userOrElectricCardId) {
-          throw NormalException.NOTFOUND('User tidak ditemukan');
+          throw NormalException.NOTFOUND('user id required');
         }
         await this.checkUserAllowance(userOrElectricCardId, accessToken);
         break;
       case 'EWALLET':
         if (!userOrElectricCardId) {
-          throw NormalException.NOTFOUND('User tidak ditemukan');
+          throw NormalException.NOTFOUND('electric card id required');
         }
         await this.checkUserEwallet(userOrElectricCardId, accessToken);
         break;
@@ -431,7 +433,7 @@ export class TransactionsService {
     this.logger.log(`\n🔵 With URL ${url} 🔵\n`);
 
     const body = {
-      transaction_id: transaction.uuid,
+      transaction_id: transaction.reference_number,
       sku: transaction.product_code,
       destination: transaction.destination,
     };
@@ -442,7 +444,7 @@ export class TransactionsService {
       supplier.public_key,
       supplier.secret_key,
       body,
-      transaction.uuid
+      transaction.reference_number
     );
     this.logger.log(`\n🔵 With HEADER ${JSON.stringify(header)} 🔵\n`);
 
@@ -497,6 +499,32 @@ export class TransactionsService {
     return response;
   }
 
+  objectToQueryString(obj: any) {
+    const keyValuePairs = [];
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key) && obj[key]) {
+        const encodedKey = encodeURIComponent(key);
+        const encodedValue = encodeURIComponent(obj[key]);
+        keyValuePairs.push(`${encodedKey}=${encodedValue}`);
+      }
+    }
+
+    return keyValuePairs.join('&');
+  }
+
+  generateRefNumber(transactionLength: number) {
+    const year = new Date().getFullYear();
+    const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const day = new Date().getDate().toString().padStart(2, '0');
+    const randomNumber = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+    const transactionLengthStr = transactionLength.toString().padStart(3, '0');
+
+    return `INV/${year}/${month}/${day}/${randomNumber}-${transactionLengthStr}`;
+  }
+
   async httpRequestInquiryProduct(transaction: Transaction) {
     this.logger.log(
       `\n🔵 Incoming Request INQUIRY  ${JSON.stringify(transaction)} 🔵\n`
@@ -504,11 +532,14 @@ export class TransactionsService {
 
     const supplier = await this.supplierService.detail(transaction.supplier_id);
 
-    const url = `https://eo3q3xv2x52p9nr.m.pipedream.net${process.env.INQUIRY_PREFIX_PATH}`;
+    const url = `${supplier.host}${process.env.INQUIRY_PREFIX_PATH}`;
     this.logger.log(`\n🔵 With URL ${url} 🔵\n`);
 
+    const transactionCount = await this.transactionRepo.count();
+
+    const refNumber = this.generateRefNumber(transactionCount);
     const body = {
-      transaction_id: transaction.uuid,
+      transaction_id: refNumber,
       sku: transaction.product_code,
       destination: transaction.destination,
     };
@@ -519,7 +550,7 @@ export class TransactionsService {
       supplier.public_key,
       supplier.secret_key,
       body,
-      transaction.uuid
+      refNumber
     );
 
     this.logger.log(`\n🔵 With HEADER ${JSON.stringify(header)} 🔵\n`);
@@ -536,12 +567,9 @@ export class TransactionsService {
       },
     });
 
-    const response = await this.httpRequestService.post(url, body, {
-      ...header,
-    });
+    const response = await this.httpRequestService.get(url, body, header);
 
     const data = response?.data;
-
     if (!this.isApiResInquiryValid(data)) {
       await this.insertLog({
         transactionId: transaction.uuid,
@@ -612,7 +640,17 @@ export class TransactionsService {
     return this.transactionRepo.save(transaction);
   }
 
+  isUUID(input: string) {
+    const uuidRegex =
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    return uuidRegex.test(input);
+  }
+
   async detail(transactionId: string) {
+    const isUUid = this.isUUID(transactionId);
+    let trxWhereStr = 'transaction.reference_number = :transactionId';
+    if (isUUid) trxWhereStr = 'transaction.uuid = :transactionId';
+
     return this.transactionRepo
       .createQueryBuilder('transaction')
       .leftJoinAndMapOne(
@@ -621,7 +659,7 @@ export class TransactionsService {
         'supplier',
         'supplier.uuid = transaction.supplier_id'
       )
-      .where('transaction.uuid = :transactionId', { transactionId })
+      .where(trxWhereStr, { transactionId })
       .getOne();
   }
 

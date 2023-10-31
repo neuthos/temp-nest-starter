@@ -8,7 +8,6 @@ export class RabbitDeserializer implements Deserializer {
 
     const data = { pattern: 'DEFAULT', data: value };
 
-    console.log(value);
     if (value.table === 'companies') {
       data.pattern = 'STREAM-COMPANY';
     } else if (value.table === 'users') {
