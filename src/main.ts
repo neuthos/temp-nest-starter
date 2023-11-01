@@ -2,8 +2,6 @@
 import { AppModule } from '@mod/app';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestFactory } from '@nestjs/core';
-import { RabbitDeserializer } from '@/filter/rabbit.deserializer';
-import { Transport } from '@nestjs/microservices';
 import { clusterize } from '@util/clustering';
 import { initialize } from '@util/helper';
 import process from 'node:process';
@@ -17,69 +15,18 @@ const bootstrap = async () => {
 
   app.enableCors();
 
-  app.connectMicroservice({
-    transport: Transport.RMQ,
-    options: {
-      urls: [process.env.RABBITMQ_URL],
-      queue: 'PRODUCTDIGITAL_STREAM_USER',
-      queueOptions: {
-        durable: true,
-      },
-      deserializer: new RabbitDeserializer(),
-      socketOptions: {
-        clientProperties: {
-          connection_name: `PRODUCT DIGITAL SERVICE FOR STREAM USER`,
-        },
-      },
-    },
-  });
-
-  app.connectMicroservice({
-    transport: Transport.RMQ,
-    options: {
-      urls: [process.env.RABBITMQ_URL],
-      queue: 'PRODUCT_DIGITAL_TRANSACTION',
-      queueOptions: {
-        durable: true,
-      },
-      deserializer: new RabbitDeserializer(),
-      socketOptions: {
-        clientProperties: {
-          connection_name: `PRODUCT DIGITAL SERVICE FOR TRANSACTION`,
-        },
-      },
-    },
-  });
-
-  app.connectMicroservice({
-    transport: Transport.RMQ,
-    options: {
-      urls: [process.env.RABBITMQ_URL],
-      queue: 'PRODUCT_DIGITAL_BILLING_QUEUE',
-      queueOptions: {
-        durable: true,
-      },
-      deserializer: new RabbitDeserializer(),
-      socketOptions: {
-        clientProperties: {
-          connection_name: `PRODUCT DIGITAL SERVICE FOR TRANSACTION`,
-        },
-      },
-    },
-  });
-
   app.startAllMicroservices();
 
   initialize(app);
 
   // SWAGGER HANDLER
   const config = new DocumentBuilder()
-    .setTitle('PRODUCT DIGITAL API')
-    .setDescription('PRODUCT DIGITAL API')
+    .setTitle('INITIAL API')
+    .setDescription('INITIAL API')
     .setVersion('0.1')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('/api/productdigital/api-documentation', app, document);
+  SwaggerModule.setup('/api/internaldashboard', app, document);
   // END SWAGGER HANDLER
 
   app.use((req: any, _: any, next: any) => {

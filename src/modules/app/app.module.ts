@@ -7,19 +7,11 @@ import {
 import { AppConfig } from './app.config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { CompanyModule } from '../company/company.module';
 import { ConfigModule } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { LoggerModule } from 'nestjs-pino';
-import { MobileModule } from '../mobile/mobile.module';
 import { Module, ValidationError, ValidationPipe } from '@nestjs/common';
-import { ProductCompaniesModule } from '../product_companies/product_companies.module';
-import { ProductDigitalBrandsModule } from '../product_digital_brands/product_digital_brands.module';
-import { ProductDigitalCategoriesModule } from '../product_digital_categories/product_digital_categories.module';
-import { ProductDigitalMasterModule } from '../product_digital_master/product_digital_master.module';
 import { ResponseInterceptor } from '@/interceptor/response.interceptor';
-import { SuppliersModule } from '../suppliers/suppliers.module';
-import { TransactionsModule } from '../transactions/transactions.module';
 import { TypeOrmConfigService } from '../typeorm/typeorm.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
@@ -32,15 +24,7 @@ import { UsersModule } from '../users/users.module';
       useClass: TypeOrmConfigService,
     }),
     HttpModule,
-    CompanyModule,
     UsersModule,
-    SuppliersModule,
-    ProductDigitalCategoriesModule,
-    ProductDigitalBrandsModule,
-    ProductDigitalMasterModule,
-    ProductCompaniesModule,
-    MobileModule,
-    TransactionsModule,
   ],
   controllers: [AppController],
   providers: [

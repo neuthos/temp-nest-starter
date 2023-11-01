@@ -3,7 +3,7 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 
-export class HttpResponseDto<T> {
+export class HttpResponseDto {
   success: boolean;
 
   data: any;
@@ -19,11 +19,11 @@ export class HttpRequestService {
 
   constructor(private httpService: HttpService) {}
 
-  async get<T>(
+  async get(
     url: string,
     params?: any,
     headers?: any
-  ): Promise<HttpResponseDto<T>> {
+  ): Promise<HttpResponseDto> {
     try {
       const request = await this.httpService.axiosRef.get(url, {
         params,
@@ -34,7 +34,7 @@ export class HttpRequestService {
 
       return {
         success: true,
-        data: response as T,
+        data: response,
         status: response.status,
         request: { url, params },
       };
@@ -52,11 +52,7 @@ export class HttpRequestService {
     }
   }
 
-  async post<T>(
-    url: string,
-    data: any,
-    headers: any
-  ): Promise<HttpResponseDto<T>> {
+  async post(url: string, data: any, headers: any): Promise<HttpResponseDto> {
     try {
       const request = await this.httpService.axiosRef.post(url, data, {
         headers,
@@ -66,7 +62,7 @@ export class HttpRequestService {
 
       return {
         success: true,
-        data: response as T,
+        data: response,
         status: response.status,
         request: { url, data },
       };
@@ -85,11 +81,7 @@ export class HttpRequestService {
     }
   }
 
-  async patch<T>(
-    url: string,
-    data: any,
-    headers: any
-  ): Promise<HttpResponseDto<T>> {
+  async patch(url: string, data: any, headers: any): Promise<HttpResponseDto> {
     try {
       const request = await this.httpService.axiosRef.patch(url, data, {
         headers,
@@ -99,7 +91,7 @@ export class HttpRequestService {
 
       return {
         success: true,
-        data: response as T,
+        data: response,
         status: response.status,
         request: { url, data },
       };
